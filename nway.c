@@ -1,38 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "timer.h"
-
-//{{{ structs and helper functions
-struct interval
-{
-	unsigned int start, end;
-};
-
-struct pair
-{
-	int start, end;
-};
-
-struct search_q
-{
-	struct pair *q;
-	struct search_q *next;
-};
-
-struct intersect_tree
-{
-	struct intersect_tree *parent;
-	//struct intersect_tree_node *children;
-	int index;
-	struct pair s_range;
-	struct pair *q;	
-};
-
-struct intersect_tree_node
-{
-	struct intersect_tree *value;
-	struct intersect_tree_node *next;
-};
+#include "pq.h"
+#include "nway.h"
 
 void print_intersect_tree_node(struct intersect_tree *t)
 {
@@ -45,10 +15,7 @@ void print_intersect_tree_node(struct intersect_tree *t)
 		   t->s_range.end);
 	printf("\n");
 }
-//}}}
 
-
-//{{{int b_search_starts(int key,
 int b_search_starts(int key,
 					struct interval *S,
 					int lo,
@@ -64,9 +31,7 @@ int b_search_starts(int key,
 	}
 	return hi;
 }
-//}}}
 
-//{{{int b_search_ends(int key,
 int b_search_ends(int key,
 					struct interval *S,
 					int lo,
@@ -82,9 +47,7 @@ int b_search_ends(int key,
 	}
 	return hi;
 }
-//}}}
 
-//{{{struct interval **rand_flat_sets(int num_sets,
 struct interval **rand_flat_sets(int num_sets,
 					int num_intervals,
 					int max_interval_size,
@@ -115,12 +78,11 @@ struct interval **rand_flat_sets(int num_sets,
 
 	return S;
 }
-//}}}
 
-//{{{void nway_sweep(int num_sets,
 void nway_sweep(int num_sets,
 				int *set_sizes,
-				struct interval **S)
+				struct interval **S,
+				int to_print)
 {
 
 	// current is an array where current[i] is the index in set S[i] that is
@@ -173,30 +135,18 @@ void nway_sweep(int num_sets,
 		++num_in_context;
 		++(current[head]);
 
-		/*
-		printf("\n%d\n", num_in_context);
-		printf("[");
-		for (i = 0; i < num_sets; ++i) {
-			if (i != 0)
-				printf(" ");
-			printf("%d", in_context[i]);
-		}
-		printf("]\n\n");
-		*/
-
-
 		//Check if there is an nway intersection
-		/*  PRINT OUTPUT
-		if (num_in_context == num_sets) {
-			printf("(");
-			for (i = 0; i < num_sets; ++i) {
-				if (i != 0)
-					printf(" ");
-				printf("%d", in_context[i]);
+		if (to_print != 0 ) {
+			if (num_in_context == num_sets) {
+				printf("(");
+				for (i = 0; i < num_sets; ++i) {
+					if (i != 0)
+						printf(" ");
+					printf("%d", in_context[i]);
+				}
+				printf(")\n");
 			}
-			printf(")\n");
 		}
-		*/
 
 		// Check to see if the scan can stop
 		for (i = 0; i < num_sets; ++i) {
@@ -206,9 +156,106 @@ void nway_sweep(int num_sets,
 		
 	}
 }
-//}}}
 
-//{{{void get_left_center_right(struct interval *a,
+void nway_sweep_pq(int num_sets,
+				   int *set_sizes,
+				   struct interval **S,
+				   int *num_nways,
+				   int to_print)
+{
+	// current is an array where current[i] is the index in set S[i] that is
+	// next up
+	int current[num_sets];
+
+	// when an interval goes into context num_in_context goes up by one, and
+	// when an interval leaves context num_in_context goes down by one
+	int num_in_context = 0;
+
+	// in_context is an arry where in_context[i] is the index of set S[i] that
+	// is cuurent in context, by assumption each set is flat and at most one
+	// interval per set can be in context at any give time
+	int in_context[num_sets];
+	int set_ids[num_sets];
+	int i;
+	for (i = 0; i < num_sets; ++i) {
+		// -1 means nothing is in context
+		in_context[i] = -1;
+		current[i] = 0;
+		set_ids[i] = i;
+	}
+
+	// set up the priority q to manage the merge
+	pri_queue q = priq_new(0);
+	for (i = 0; i < num_sets; ++i) {
+		priq_push(q, set_ids[i] ,S[i][current[i]].start);
+	}
+
+	// continue until the sweep has completely passed one of the sets, that is,
+	// S[i][current[i]] == set_sizes[i], and in_contex[i] == -1
+	int scan = 1;
+	*num_nways = 0;
+	while (scan == 1) {
+
+		int p;
+		int head = priq_pop(q, &p);
+		//S[head][current[head]] is about to be in context
+		
+		//See if anything must leave context first
+		for (i = 0; i < num_sets; ++i) {
+			if (in_context[i] > -1)
+				if (S[i][in_context[i]].end <  S[head][current[head]].start) {
+					in_context[i] = -1;
+					--num_in_context;
+				}
+		}
+
+		//S[head][current[head]] is now in context
+		in_context[head] = current[head];
+		++num_in_context;
+		++(current[head]);
+		// put the next item from S[head] on the q only if that S[head] is not
+		// yet empty
+		if (current[head] < set_sizes[head])
+			priq_push(q, set_ids[head] ,S[head][current[head]].start);
+
+		if (num_in_context == num_sets)
+			*num_nways = *num_nways + 1; 
+
+		//Check if there is an nway intersection
+		if (to_print != 0 ) {
+			if (num_in_context == num_sets) {
+				printf("(");
+				for (i = 0; i < num_sets; ++i) {
+					if (i != 0)
+						printf(" ");
+					printf("%d", in_context[i]);
+				}
+				printf(")\n");
+			}
+		}
+
+		// Check to see if the scan can stop
+		for (i = 0; i < num_sets; ++i) {
+			if ((current[i] == set_sizes[i]) && (in_context[i] == -1))
+				scan = 0;
+		}
+		
+	}
+}
+
+void nway_step(int num_sets,
+				   int *set_sizes,
+				   struct interval **S,
+				   int to_print)
+{
+	int i;
+	int x;
+	for (i = 0; i < (num_sets - 1); i+=2) {
+		nway_sweep_pq(2,set_sizes + i, S + i, &x, 1);
+		printf("\n");
+	}
+}
+
 void get_left_center_right(struct interval *a,
 						   int a_mid,
 						   struct pair a_dim,
@@ -303,12 +350,12 @@ void get_left_center_right(struct interval *a,
 	//printf("(%d,%d)", s_right->start, s_right->end);
 	//printf("\n");
 }
-//}}}
 
-//{{{void nway_split(int num_sets,
 void nway_split(int num_sets,
 				int *set_sizes,
-				struct interval **S)
+				struct interval **S,
+                int *num_nways,
+				int to_print)
 {
 	// Start with a root node in the intersect tree that has no value, and
 	// contains the full set of sets
@@ -555,73 +602,33 @@ void nway_split(int num_sets,
 		search_head = search_head->next;
 	}
 
-	/*  PRINT OUTPUT
-	struct intersect_tree_node *leaves_head = leaves_root;
-	int nway_intersect[num_sets];
-	while (leaves_head != NULL) {
-		int i = num_sets - 1;
-		struct intersect_tree *curr_node = leaves_head->value;
-		while (curr_node->index != -1) {
-			nway_intersect[i--] = curr_node->index;
-			curr_node = curr_node->parent;
+    *num_nways = 0;
+    struct intersect_tree_node *leaves_head = leaves_root;
+    while (leaves_head != NULL) {
+        leaves_head = leaves_head->next;
+        *num_nways = *num_nways + 1;
+    }
+
+	if (to_print != 0 ) {
+		struct intersect_tree_node *leaves_head = leaves_root;
+		int nway_intersect[num_sets];
+		while (leaves_head != NULL) {
+			int i = num_sets - 1;
+			struct intersect_tree *curr_node = leaves_head->value;
+			while (curr_node->index != -1) {
+				nway_intersect[i--] = curr_node->index;
+				curr_node = curr_node->parent;
+			}
+
+			printf("(");
+			for (i = 0; i < num_sets; ++i) {
+				if (i != 0)
+					printf(" ");
+				printf("%d", nway_intersect[i]);
+			}
+			printf(")\n");
+
+			leaves_head = leaves_head->next;
 		}
-
-		printf("(");
-		for (i = 0; i < num_sets; ++i) {
-			if (i != 0)
-				printf(" ");
-			printf("%d", nway_intersect[i]);
-		}
-		printf(")\n");
-
-		leaves_head = leaves_head->next;
 	}
-	*/
-}
-//}}}
-
-
-int main(int argc, char **argv)
-{
-	if (argc != 5) {
-		fprintf(stderr,"usage:\t%s "
-				"<num sets> "
-				"<num intervals> "
-				"<max interval size> "
-				"<max gap size>\n",argv[0]);
-		return 1;
-	}
-	unsigned int seed = 1;
-	srand(seed);
-
-	int num_sets = atoi(argv[1]),
-		num_intervals = atoi(argv[2]),
-		max_interval_size = atoi(argv[3]),
-		max_gap_size = atoi(argv[4]);
-
-	int *set_sizes;
-
-
-	struct interval **S = rand_flat_sets(num_sets,
-										 num_intervals,
-										 max_interval_size,
-										 max_gap_size,
-										 &set_sizes);
-
-	start();
-	nway_sweep(num_sets, set_sizes, S);
-	stop();
-	unsigned long sweep = report();
-
-	start();
-	nway_split(num_sets, set_sizes, S);
-	stop();
-	unsigned long split = report();
-	printf("split:\t%lu\t"
-		   "sweep:\t%lu\t" 
-		   "split/sweep:\t%f\n", 
-		   split, sweep,((double)sweep)/((double)split));
-	//printf("split:\t%lu\n", split);
-	//printf("sweep:\t%lu\n", sweep);
-	//printf("sweep/split:\t%f\n", ((double)sweep)/((double)split));
 }
