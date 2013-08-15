@@ -31,17 +31,16 @@ int main(int argc, char **argv)
 
 
     struct interval **S = rand_set_flat_sets(num_sets,
-                                             num_intervals,
-                                             interval_size,
-                                             domain_size,
-                                             num_nways,
-                                             &set_sizes);
+                          num_intervals,
+                          interval_size,
+                          domain_size,
+                          num_nways,
+                          &set_sizes);
 
-    int num_nway;
-    start();
-    nway_sweep_pq(num_sets, set_sizes, S, &num_nway, to_print);
-    stop();
-    unsigned long sweepq = report();
-
-    fprintf(stderr, "%d\t%lu\n", num_nway, sweepq);
+    int i,j;
+    for (i = 0; i < num_sets; ++i) {
+        for (j = 0; j < num_intervals; ++j)
+            printf("%d,%d ", S[i][j].start, S[i][j].end);
+        printf("\n");
+    }
 }

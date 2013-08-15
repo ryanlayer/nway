@@ -17,6 +17,7 @@ int main(int argc, char **argv)
                 "<to print>\n",argv[0]);
         return 1;
     }
+
     unsigned int seed = 1;
     srand(seed);
 
@@ -30,6 +31,7 @@ int main(int argc, char **argv)
     int *set_sizes;
 
 
+
     struct interval **S = rand_set_flat_sets(num_sets,
                                              num_intervals,
                                              interval_size,
@@ -37,9 +39,10 @@ int main(int argc, char **argv)
                                              num_nways,
                                              &set_sizes);
 
+    print_interval_sets(S, num_sets, set_sizes);
     int num_nway;
     start();
-    nway_sweep_pq(num_sets, set_sizes, S, &num_nway, to_print);
+    nway_sweep(num_sets, set_sizes, S, &num_nway, to_print);
     stop();
     unsigned long sweepq = report();
 
