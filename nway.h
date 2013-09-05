@@ -44,6 +44,19 @@ struct int_list_list
     int size;
 };
 
+struct split_search_node {
+    struct split_search_node *parent;
+    struct split_search_node *next;
+    struct interval **S;
+    struct pair S_dim;
+    struct pair *s_dim;
+    int has_empty;
+};
+
+struct split_search_node_list {
+    struct split_search_node *node;
+    struct split_search_node_list *next;
+};
 
 
 void print_interval_sets(struct interval **S,
@@ -112,4 +125,16 @@ void nway_split(int num_sets,
 		struct interval **S,
                 int *num_nways,
 		int to_print);
+
+void split_search(struct split_search_node *query,
+                  struct split_search_node *left,
+                  struct split_search_node *center,
+                  struct split_search_node *right);
+
+void print_slice(char *name,
+                 struct split_search_node *slice);
+
+void print_path(struct split_search_node *node);
+
+
 #endif

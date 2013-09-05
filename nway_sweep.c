@@ -7,12 +7,13 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 6) {
+    if (argc != 7) {
         fprintf(stderr,"usage:\t%s "
                 "<num sets> "
                 "<num intervals> "
-                "<max interval size> "
-                "<max gap size> "
+                "<interval size> "
+                "<domain size> "
+                "<min nway> "
                 "<to print>\n",argv[0]);
         return 1;
     }
@@ -21,25 +22,28 @@ int main(int argc, char **argv)
 
     int num_sets = atoi(argv[1]),
         num_intervals = atoi(argv[2]),
-        max_interval_size = atoi(argv[3]),
-        max_gap_size = atoi(argv[4]),
-        to_print = atoi(argv[5]);
+        interval_size = atoi(argv[3]),
+        domain_size = atoi(argv[4]),
+        num_nways = atoi(argv[5]),
+        to_print = atoi(argv[6]);
 
     int *set_sizes;
 
 
-    struct interval **S = rand_flat_sets(num_sets,
-                                         num_intervals,
-                                         max_interval_size,
-                                         max_gap_size,
-                                         &set_sizes);
+    struct interval **S = rand_set_flat_sets(num_sets,
+                                             num_intervals,
+                                             interval_size,
+                                             domain_size,
+                                             num_nways,
+                                             &set_sizes);
 
-    if (to_print == 1)
-        printf("::nway_sweep::\n");
+    if (to_print > 0)
+        print_interval_sets(S, num_sets, set_sizes);
+    int num_nway;
     start();
-    nway_sweep(num_sets, set_sizes, S, to_print);
+    nway_sweep(num_sets, set_sizes, S, &num_nway, to_print);
     stop();
-    unsigned long sweep = report();
+    unsigned long sweepq = report();
 
-    printf("%d\t%lu\n", 1, sweep);
+    fprintf(stderr, "%d\t%lu\n", num_nway, sweepq);
 }

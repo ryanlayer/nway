@@ -5,7 +5,6 @@
 #include "pq.h"
 #include "nway.h"
 
-
 //{{{ int compare_interval_by_start (const void *a, const void *b)
 int compare_interval_by_start (const void *a, const void *b)
 {
@@ -163,8 +162,7 @@ struct interval **rand_set_flat_sets(int num_sets,
 }
 //}}}
 
-
-
+//{{{void nway_sweep(int num_sets,
 void nway_sweep(int num_sets,
 		int *set_sizes,
 		struct interval **S,
@@ -190,7 +188,7 @@ void nway_sweep(int num_sets,
 
     pri_queue q = priq_new(0);
     for (i = 0; i < num_sets; ++i) {
-        priq_push(q, set_ids[i], S[i][next[i]].start);
+        priq_push(q, &set_ids[i], S[i][next[i]].start);
         next[i] += 1;
     }
 
@@ -202,9 +200,9 @@ void nway_sweep(int num_sets,
         // get the next element to place into an ordering
         // s_i is the index of the set in S that will constribute the element
         // start_pos is the starting position of that element
-        int s_i = priq_pop(q, &start_pos);
+        int *s_i = priq_pop(q, &start_pos);
 
-        if (s_i == -1)
+        if (s_i == NULL)
             break;
 
         // remove anything from the orderings that ends before start_pos
@@ -220,26 +218,26 @@ void nway_sweep(int num_sets,
 
         // Make sure that there is somethin left to push before pushing
         // the next elemetn from S[s_i]
-        if (next[s_i] < set_sizes[s_i]) 
-            priq_push(q, set_ids[s_i], S[s_i][next[s_i]].start);
-        next[s_i] += 1;
+        if (next[*s_i] < set_sizes[*s_i]) 
+            priq_push(q, &set_ids[*s_i], S[*s_i][next[*s_i]].start);
+        next[*s_i] += 1;
 
         // Check to see if adding this element causes an n-way intersection
         int is_nway = 0;
         for (i = 0; i < num_sets; i++)
-            if (i != s_i)
+            if (i != *s_i)
                 if (ordering[i].end >= ordering[i].start)
                     is_nway += 1;
 
         if (is_nway == num_sets - 1) {
-            *num_nways += count_nway(num_sets, s_i, ordering);
+            *num_nways += count_nway(num_sets, *s_i, ordering);
             if (to_print > 0)
-                print_nway(num_sets, s_i, start_pos, ordering);
+                print_nway(num_sets, *s_i, start_pos, ordering);
         }
 
 
         // Add the element to the ordering for that set
-        ordering[s_i].end+=1;
+        ordering[*s_i].end+=1;
 
         // check to see if we can stop scanning To stop scanning the last
         // element in a set must have been moved out of context
@@ -250,6 +248,7 @@ void nway_sweep(int num_sets,
         }
     }
 }
+//}}}
 
 //{{{ void print_nway( int num_sets,
 void print_nway( int num_sets,
@@ -340,11 +339,11 @@ void print_nway( int num_sets,
 
     struct int_list_list *curr = head;
     while (curr != NULL) {
-        printf("%d\t", start_pos);
+        //printf("%d\t", start_pos);
         int j;
         for (j = 0; j < num_sets; ++j) {
             if (j != 0)
-                printf(" ");
+                printf("\t");
             printf("%d", curr->list[j]);
         }
         printf("\n");
@@ -357,7 +356,7 @@ void print_nway( int num_sets,
 //{{{int count_nway( int num_sets,
 int count_nway(int num_sets,
                int s_i,
-                struct pair *ordering)
+               struct pair *ordering)
 {
     int num_nways = 1;
     int i;
@@ -370,7 +369,6 @@ int count_nway(int num_sets,
 }
 //}}}
 
-
 //{{{ void nway_step(int num_sets,
 void nway_step(int num_sets,
                int *set_sizes,
@@ -382,6 +380,98 @@ void nway_step(int num_sets,
     for (i = 0; i < (num_sets - 1); i+=2) {
         nway_sweep(2,set_sizes + i, S + i, &x, 1);
         printf("\n");
+    }
+}
+//}}}
+
+//{{{ void split_search(struct split_search_node *query,
+void split_search(struct split_search_node *query,
+                  struct split_search_node *left,
+                  struct split_search_node *center,
+                  struct split_search_node *right)
+{
+
+    // s_dim[0] corresponds to S_dim.start
+    struct interval *a = query->S[query->S_dim.start];
+    struct pair a_dim;
+    a_dim = query->s_dim[0];
+    int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
+    struct interval root = a[a_mid];
+
+    int num_sets = query->S_dim.end - query->S_dim.start + 1;
+
+    /* left and right have the same parent as the query and consider the
+     * same range in S, but the subsets of each S[i] (values in s_dim)
+     * will be different
+     */
+    left->S = query->S;
+    left->S_dim = query->S_dim;
+    left->parent = query->parent;
+    left->s_dim = (struct pair *) malloc (num_sets*sizeof(struct pair));
+    left->s_dim[0].start = a_dim.start;
+    left->s_dim[0].end = a_mid - 1;
+
+    left->has_empty = left->s_dim[0].start > left->s_dim[0].end;
+
+    right->S = query->S;
+    right->S_dim = query->S_dim;
+    right->s_dim = (struct pair *) malloc (num_sets*sizeof(struct pair));
+    right->parent = query->parent;
+    right->s_dim[0].start = a_mid + 1;
+    right->s_dim[0].end = a_dim.end;
+
+    right->has_empty = right->s_dim[0].start > right->s_dim[0].end;
+
+    center->S = query->S;
+    center->S_dim.start = query->S_dim.start + 1;
+    center->S_dim.end = query->S_dim.end;
+    center->s_dim = (struct pair *) malloc 
+            ((num_sets-1)*sizeof(struct pair));
+    center->parent = query;
+
+    int i;
+    //for (i = query->S_dim.start + 1; i <= query->S_dim.end; ++i) {
+    for (i = 1; i < query->S_dim.end - query->S_dim.start + 1; ++i) {
+        struct interval *s = query->S[i + query->S_dim.start];
+        struct pair s_dim = query->s_dim[i];
+
+        struct pair s_center;
+        int center_is_empty = 0;
+        struct pair s_left;
+        int left_is_empty = 0;
+        struct pair s_right;
+        int right_is_empty = 0;
+
+        get_left_center_right(a,
+                              a_mid,
+                              a_dim, 
+                              s, 
+                              s_dim, 
+                              &s_center, 
+                              &center_is_empty, 
+                              &s_left, 
+                              &left_is_empty, 
+                              &s_right, 
+                              &right_is_empty);
+
+        left->s_dim[i].start = s_left.start;
+        left->s_dim[i].end = s_left.end;
+        left->has_empty += left_is_empty;
+
+        right->s_dim[i].start = s_right.start;
+        right->s_dim[i].end = s_right.end;
+        right->has_empty += right_is_empty;
+
+        center->s_dim[i-1].start = s_center.start;
+        center->s_dim[i-1].end = s_center.end;
+        center->has_empty += center_is_empty;
+
+        /*
+        printf("\tl:%d %d %d\tc:%d %d %d\tr:%d %d %d\n", 
+                            s_left.start, s_left.end, left_is_empty,
+                            s_center.start, s_center.end, center_is_empty,
+                            s_right.start, s_right.end, right_is_empty);
+        */
     }
 }
 //}}}
@@ -406,10 +496,8 @@ void get_left_center_right(struct interval *a,
     int s_left_i = b_search_ends(root.start,
                                  s,
                                  s_dim.start - 1,
-                                 s_dim.end + 1) - 1;
-
-    //if ( (s_left_i > 0) && (root.start >= s[s_left_i].start) )
-    //--s_left_i;
+                                 s_dim.end + 1) 
+                    - 1;
 
     // s_right_i is the index of the first interval to start after
     // the current interval (root) ends
@@ -417,6 +505,7 @@ void get_left_center_right(struct interval *a,
                                     s,
                                     s_dim.start - 1,
                                     s_dim.end + 1);
+
     if ( (s_right_i <= s_dim.end) && (root.end == s[s_right_i].start) )
         ++s_right_i;
 
@@ -445,42 +534,39 @@ void get_left_center_right(struct interval *a,
     // s: ---  -------------  ----
     //    ^s_end_i            ^s_start_i
     s_left->start = s_dim.start;
-    s_left->end = s_left_i;
-    //fprintf(stderr,"a_mid:%d\n", a_mid);
-    //fprintf(stderr,"a_dim.start:%d\n", a_dim.start);
-    //fprintf(stderr,"s_center->start:%d\n", s_center->start);
-    //fprintf(stderr,"s_dim.start:%d\n", s_dim.start);
-    //fprintf(stderr,"s_dim.end:%d\n", s_dim.end);
-    //fprintf(stderr,"a[a_mid - 1].end:%d\n", a[a_mid - 1].end);
-    //fprintf(stderr,"s[s_center->start].start:%d\n", s[s_center->start].start);
-    //fprintf(stderr,"s_center->start >= s_dim.start:%d\n",
-    //s_center->start >= s_dim.start);
-    //fprintf(stderr,"s_center->start <= s_dim.end:%d\n",
-    //s_center->start <= s_dim.end);
+    s_left->end = s_right_i - 1;
+
+    /*
     if ( (a_mid > a_dim.start) && // bound check
             (s_center->start >= s_dim.start) && //bound check
             (s_center->start <= s_dim.end) && //bound check
             (a[a_mid - 1].end >= s[s_center->start].start) )
         s_left->end = s_center->start;
+    */
 
     if (s_left->start > s_left->end)
         *left_is_empty = 1;
 
-    s_right->start = s_right_i;
+    s_right->start = s_left_i + 1;
     s_right->end = s_dim.end;
+
+    /*
     if ( (a_mid < a_dim.end) && // bound check
             (s_center->start >= s_dim.start) && //bound check
             (s_center->end <= s_dim.end) && //bound check
             (a[a_mid + 1].start <= s[s_center->end].end) )
         s_right->start = s_center->end;
+    */
 
     if (s_right->start > s_right->end)
         *right_is_empty = 1;
 
-    //printf("(%d,%d)", s_left->start, s_left->end);
-    //printf("(%d,%d)", s_center->start, s_center->end);
-    //printf("(%d,%d)", s_right->start, s_right->end);
-    //printf("\n");
+    /*
+    printf("(%d,%d)", s_left->start, s_left->end);
+    printf("(%d,%d)", s_center->start, s_center->end);
+    printf("(%d,%d)", s_right->start, s_right->end);
+    printf("\n");
+    */
 }
 //}}} 
 
@@ -783,5 +869,38 @@ void print_interval_sets(struct interval **S,
         }
         printf("\n");
     }
+}
+//}}}
+
+//{{{void print_slice(char *name,
+void print_slice(char *name,
+                 struct split_search_node *slice)
+{
+    int i;
+    for(i = 0; i < slice->S_dim.end - slice->S_dim.start + 1; ++i)
+        printf("\t%d\t%d\n",
+                slice->s_dim[i].start,
+                slice->s_dim[i].end);
+}
+//}}}
+
+//{{{void print_path(struct split_search_node *node)
+void print_path(struct split_search_node *node)
+{
+    struct pair a_dim;
+    a_dim = node->s_dim[0];
+    int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
+    printf("%d->",a_mid); 
+
+    struct split_search_node *curr = node->parent;
+    while (curr != NULL) {
+        struct pair a_dim;
+        a_dim = curr->s_dim[0];
+        int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
+        printf("%d->",a_mid); 
+
+        curr = curr->parent;
+    }
+    printf("\n");
 }
 //}}}
