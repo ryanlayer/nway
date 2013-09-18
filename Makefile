@@ -22,13 +22,13 @@ little_split: little_split.o $(OBJ)
 little_sweep: little_sweep.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
+sweep: sweep.o $(OBJ)
+	gcc -o $@ $^ $(CFLAGS)
+
 nway: nway_main.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
-split: nway_split.o $(OBJ)
-	gcc -o $@ $^ $(CFLAGS)
-
-sweep: nway_sweep.o $(OBJ)
+split: split.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
 gen_set: gen_set.o $(OBJ)

@@ -904,3 +904,365 @@ void print_path(struct split_search_node *node)
     printf("\n");
 }
 //}}}
+
+//{{{ void get_nway_sweep_list( int num_sets,
+void get_nway_sweep_list(int num_sets,
+                         int s_i,
+                         struct pair *ordering,
+                         struct int_list_list **r_head,
+                         struct int_list_list **r_tail)
+{
+    // Create the first nway list
+    struct int_list_list *head = (struct int_list_list *)
+            malloc(sizeof(struct int_list_list));
+    struct int_list_list *tail = head;
+
+    head->size = num_sets;
+    head->list = (int *) malloc(head->size * sizeof(int));
+    head->next = NULL;
+
+    // Create nways from the orders before s_i
+    int i;
+    for (i = 0; i < num_sets; i++) {
+
+        if (i == s_i) {
+            // Add the new item to the list
+            struct int_list_list *curr = head;
+            while (curr != NULL) {
+                curr->list[s_i] = ordering[s_i].end + 1;
+                curr = curr->next;
+            }
+        } else { 
+            // set the first item in the ordering
+            struct int_list_list *curr = head;
+            while (curr != NULL) {
+                //printf("0\t%d %d\n", i, ordering[i].start);
+                curr->list[i] = ordering[i].start;
+                curr = curr->next;
+            }
+
+            // if there is more than one element in the ordering, then we
+            // need to make copies of the nway lists up to this point
+            // and set the values
+            struct int_list_list *copy_head, *copy_tail;
+            copy_head = NULL;
+
+            int j;
+            // make copies
+            for (j = ordering[i].start + 1; j <= ordering[i].end; ++j) {
+                struct int_list_list *curr = head;
+                while (curr != NULL) {
+
+                    struct int_list_list *nway_copy = 
+                            (struct int_list_list *)
+                            malloc(sizeof(struct int_list_list));
+                    nway_copy->size = num_sets;
+                    nway_copy->list = (int *) 
+                            malloc(head->size * sizeof(int));
+                    nway_copy->next = NULL;
+
+                    //copy elements from the current nway over
+                    memcpy(nway_copy->list,
+                           curr->list,
+                           num_sets*sizeof(int));
+
+                    //printf("1\t%d %d\n", i, j);
+                    nway_copy->list[i] = j;
+
+
+                    if (copy_head == NULL) {
+                        copy_head = nway_copy;
+                        copy_tail = nway_copy;
+                    } else {
+                        copy_tail->next = nway_copy;
+                        copy_tail = nway_copy;
+                    }
+
+                    curr = curr->next;
+                }
+
+            }
+
+            // atach copies to the list
+            if (copy_head != NULL) {
+                tail->next = copy_head;
+                tail = copy_tail;
+            }
+        }
+    }
+
+    /*
+    struct int_list_list *curr = head;
+    while (curr != NULL) {
+        int j;
+        for (j = 0; j < num_sets; ++j) {
+            if (j != 0)
+                printf("\t");
+            printf("%d", curr->list[j]);
+        }
+        printf("\n");
+        curr->list[s_i] = ordering[s_i].end + 1;
+        curr = curr->next;
+    }
+    */
+
+    *r_head = head;
+    *r_tail = tail;
+}
+//}}}
+
+//{{{ void sweep(struct interval **S,
+void sweep(struct interval **S,
+           int *set_sizes,
+           int num_sets,
+           struct int_list_list **R)
+{
+    struct int_list_list *nways_head, *nways_tail;
+    nways_head = NULL;
+    struct pair ordering[num_sets];
+
+    int i;
+    // Initialize the ordering for S
+    for (i = 0; i < num_sets; i++) {
+        ordering[i].start = 0;
+        ordering[i].end = -1;
+    }
+
+    int next[num_sets];
+    for (i = 0; i < num_sets; i++)
+        next[i] = 0;
+
+    int set_ids[num_sets];
+    for (i = 0; i < num_sets; i++)
+        set_ids[i] = i;
+
+    pri_queue q = priq_new(0);
+    for (i = 0; i < num_sets; ++i) {
+        priq_push(q, &set_ids[i], S[i][next[i]].start);
+        next[i] += 1;
+    }
+
+    int scan = 1;
+    while (scan == 1) {
+        int start_pos;
+
+        // get the next element to place into an ordering
+        // s_i is the index of the set in S that will constribute the
+        // element start_pos is the starting position of that element
+        int *s_i_p = priq_pop(q, &start_pos);
+        int s_i = *s_i_p;
+
+        // remove anything from the orderings that ends before start_pos
+        for (i = 0; i < num_sets; i++) {
+            int j;
+            for (j = ordering[i].start; j <= ordering[i].end; ++j) {
+                if (S[i][j].end < start_pos)  {
+                    ordering[i].start += 1;
+                }
+            }
+        }
+
+        // Make sure that there is somethin left to push before pushing
+        // the next elemetn from S[s_i]
+        if (next[s_i] < set_sizes[s_i]) {
+            priq_push(q, &set_ids[s_i], S[s_i][next[s_i]].start);
+            next[s_i] += 1;
+        }
+
+        // Check to see if adding this element causes an n-way
+        // intersection
+        int is_nway = 0;
+        // Check the orders before s_i
+        for (i = 0; i < s_i; i++)
+            if (ordering[i].end >= ordering[i].start)
+                is_nway += 1;
+        // Check the orders after s_i
+        for (i = s_i + 1; i < num_sets; i++)
+            if (ordering[i].end >= ordering[i].start)
+                is_nway += 1;
+
+        // If all other orderings contain elements, than we have an n-way
+        // intersection, print it
+        if (is_nway == num_sets - 1) {
+            struct int_list_list *r_head, *r_tail;
+
+            get_nway_sweep_list(num_sets,
+                                s_i,
+                                ordering,
+                                &r_head,
+                                &r_tail);
+
+            if (nways_head == NULL) {
+                nways_head = r_head;
+                nways_tail = r_tail;
+            } else {
+                nways_tail->next = r_head;
+                nways_tail = r_tail;
+            }
+        }
+
+        // Add the element to the ordering for that set
+        ordering[s_i].end+=1;
+
+        // check to see if we can stop scanning To stop scanning the last
+        // element in a set must have been moved out of context
+        for (i = 0; i < num_sets; i++) {
+            if (ordering[i].start >= set_sizes[s_i])
+                scan = 0;
+        }
+    }
+
+    *R = nways_head;
+}
+//}}}
+
+//{{{ void split(struct interval **S,
+void split(struct interval **S,
+           int *set_sizes,
+           int num_sets,
+           struct int_list_list **R)
+{
+    struct split_search_node root_node;
+    root_node.parent = NULL;
+    root_node.S = S;
+    root_node.S_dim.start = 0;
+    root_node.S_dim.end = num_sets - 1;
+    root_node.s_dim = (struct pair *) 
+        malloc (num_sets * sizeof(struct pair));
+
+    int i;
+    for (i = 0; i < num_sets; ++i) {
+        root_node.s_dim[i].start = 0;
+        root_node.s_dim[i].end = set_sizes[i] - 1;
+    }
+
+    root_node.has_empty = 0;
+    root_node.next = NULL;
+    struct split_search_node *head, *tail;
+    head = &root_node;
+    tail = &root_node;
+    
+
+    struct split_search_node_list *leaf_head, *leaf_tail;
+    leaf_head = NULL;
+
+    struct split_search_node *curr = head;
+    while (curr != NULL) {
+        struct split_search_node *left = 
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        left->next = NULL;
+        left->has_empty = 0;
+
+        struct split_search_node *center =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        center->next = NULL;
+        center->has_empty = 0;
+
+        struct split_search_node *right =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        right->next = NULL;
+        right->has_empty = 0;
+
+        split_search(curr, left, center, right);
+
+        if (left->has_empty == 0) {
+            tail->next = left;
+            tail = left;
+        }
+
+        if (right->has_empty == 0) {
+            tail->next = right;
+            tail = right;
+        }
+
+        if ( (center->has_empty == 0) &&
+             (center->S_dim.start < center->S_dim.end) ) {
+            tail->next = center;
+            tail = center;
+        }
+
+        if (center->S_dim.start == center->S_dim.end) {
+            struct split_search_node_list *next_leaf;
+            next_leaf = (struct split_search_node_list *)
+                    malloc (sizeof(struct split_search_node_list *));
+            next_leaf->node = center;
+            next_leaf->next = NULL;
+
+            if (leaf_head == NULL) {
+                leaf_head = next_leaf;
+                leaf_tail = leaf_head;
+            } else {
+                leaf_tail->next = next_leaf;
+                leaf_tail = next_leaf;
+            }
+        }
+
+        curr = curr->next;
+    }
+
+    struct split_search_node_list *curr_leaf = leaf_head;
+
+    struct int_list_list *R_head, *R_tail;
+    R_head = NULL;
+    int count = 0;
+    while (curr_leaf != NULL) {
+        // build path to leaf
+        // add in reverse order, top element is first
+        struct split_search_node *curr_parent = curr_leaf->node->parent;
+        int path[num_sets];
+
+        curr_parent = curr_leaf->node->parent;
+        int i = 0;
+        while (curr_parent != NULL) {
+            struct pair a_dim;
+            a_dim = curr_parent->s_dim[0];
+            int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
+            path[num_sets - 1 - i - 1] = a_mid;
+            curr_parent = curr_parent->parent;
+            ++i;
+        }
+
+        for (i = curr_leaf->node->s_dim[0].start;
+             i <= curr_leaf->node->s_dim[0].end;
+             ++i) {
+            struct int_list_list *new_nway = 
+                (struct int_list_list *)
+                malloc (sizeof (struct int_list_list));
+            new_nway->size = num_sets;
+            new_nway->next = NULL;
+            path[num_sets - 1] = i;
+
+            new_nway->list = (int *)malloc(num_sets * sizeof(int));
+            memcpy(new_nway->list, path ,num_sets * sizeof(int));
+
+            if (R_head == NULL) {
+                R_head = new_nway;
+                R_tail = new_nway;
+            } else {
+                R_tail->next = new_nway;
+                R_tail = new_nway;
+            }
+        }
+        curr_leaf = curr_leaf->next;
+        count += 1;
+    }
+    
+    *R = R_head;
+    /*
+    struct int_list_list *c = R_head;
+    while (c != NULL) {
+        int j;
+        for (j = 0; j < c->size; ++j) {
+            if (j != 0)
+                printf("\t");
+            printf("%d", c->list[j]);
+        }
+        printf("\n");
+        c = c->next;
+    }
+    */
+}
+//}}}

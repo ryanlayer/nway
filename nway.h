@@ -58,7 +58,6 @@ struct split_search_node_list {
     struct split_search_node_list *next;
 };
 
-
 void print_interval_sets(struct interval **S,
                          int num_sets,
                          int *set_sizes);
@@ -136,5 +135,22 @@ void print_slice(char *name,
 
 void print_path(struct split_search_node *node);
 
+void split();
+
+void sweep(struct interval **S,
+           int *set_sizes,
+           int num_sets,
+           struct int_list_list **R);
+
+void get_nway_sweep_list(int num_sets,
+                         int s_i,
+                         struct pair *ordering,
+                         struct int_list_list **r_head,
+                         struct int_list_list **r_tail);
+
+void split(struct interval **S,
+           int *set_sizes,
+           int num_sets,
+           struct int_list_list **R);
 
 #endif

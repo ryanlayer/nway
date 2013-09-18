@@ -61,8 +61,8 @@ int main(int argc, char **argv)
         int start_pos;
 
         // get the next element to place into an ordering
-        // s_i is the index of the set in S that will constribute the element
-        // start_pos is the starting position of that element
+        // s_i is the index of the set in S that will constribute the
+        // element start_pos is the starting position of that element
         int *s_i_p = priq_pop(q, &start_pos);
         int s_i = *s_i_p;
 
@@ -83,7 +83,8 @@ int main(int argc, char **argv)
             next[s_i] += 1;
         }
 
-        // Check to see if adding this element causes an n-way intersection
+        // Check to see if adding this element causes an n-way
+        // intersection
         int is_nway = 0;
         // Check the orders before s_i
         for (i = 0; i < s_i; i++)
