@@ -153,4 +153,11 @@ void split(struct interval **S,
            int num_sets,
            struct int_list_list **R);
 
+void free_split_search_node (struct split_search_node *n);
+
+void free_int_list_list(struct int_list_list *l);
+
+void add_to_clear_list(struct split_search_node_list **to_clear_head,
+                       struct split_search_node_list **to_clear_tail,
+                       struct split_search_node *node);
 #endif

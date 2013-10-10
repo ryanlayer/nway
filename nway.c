@@ -1122,26 +1122,35 @@ void split(struct interval **S,
            int num_sets,
            struct int_list_list **R)
 {
-    struct split_search_node root_node;
-    root_node.parent = NULL;
-    root_node.S = S;
-    root_node.S_dim.start = 0;
-    root_node.S_dim.end = num_sets - 1;
-    root_node.s_dim = (struct pair *) 
+    struct split_search_node_list *to_clear_head = NULL, 
+                                 *to_clear_tail = NULL;
+
+    struct split_search_node *root_node = 
+        (struct split_search_node *) malloc (
+        sizeof(struct split_search_node));
+
+    add_to_clear_list(&to_clear_head, &to_clear_tail, root_node);
+
+    root_node->parent = NULL;
+    root_node->S = S;
+    root_node->S_dim.start = 0;
+    root_node->S_dim.end = num_sets - 1;
+    root_node->s_dim = (struct pair *) 
         malloc (num_sets * sizeof(struct pair));
 
     int i;
     for (i = 0; i < num_sets; ++i) {
-        root_node.s_dim[i].start = 0;
-        root_node.s_dim[i].end = set_sizes[i] - 1;
+        root_node->s_dim[i].start = 0;
+        root_node->s_dim[i].end = set_sizes[i] - 1;
     }
 
-    root_node.has_empty = 0;
-    root_node.next = NULL;
+    root_node->has_empty = 0;
+    root_node->next = NULL;
     struct split_search_node *head, *tail;
-    head = &root_node;
-    tail = &root_node;
+    head = root_node;
+    tail = root_node;
     
+
 
     struct split_search_node_list *leaf_head, *leaf_tail;
     leaf_head = NULL;
@@ -1168,36 +1177,53 @@ void split(struct interval **S,
 
         split_search(curr, left, center, right);
 
+        /* 
+         * For any of the splits that have all non-zero subs sets,
+         * add the split onto the queue to be re-split
+         */
         if (left->has_empty == 0) {
             tail->next = left;
             tail = left;
+            add_to_clear_list(&to_clear_head, &to_clear_tail, left);
+        } else {
+            free_split_search_node(left);
         }
 
         if (right->has_empty == 0) {
             tail->next = right;
             tail = right;
+            add_to_clear_list(&to_clear_head, &to_clear_tail, right);
+        } else {
+            free_split_search_node(right);
         }
 
-        if ( (center->has_empty == 0) &&
-             (center->S_dim.start < center->S_dim.end) ) {
-            tail->next = center;
-            tail = center;
-        }
-
-        if (center->S_dim.start == center->S_dim.end) {
-            struct split_search_node_list *next_leaf;
-            next_leaf = (struct split_search_node_list *)
-                    malloc (sizeof(struct split_search_node_list *));
-            next_leaf->node = center;
-            next_leaf->next = NULL;
-
-            if (leaf_head == NULL) {
-                leaf_head = next_leaf;
-                leaf_tail = leaf_head;
+        if ( center->has_empty == 0) {
+            /* 
+             * Do not re-split the center if the next level is the last level
+             * If the next level is the last level, add center onto the list of
+             * leaf nodes
+             */
+            add_to_clear_list(&to_clear_head, &to_clear_tail, center);
+            if (center->S_dim.start < center->S_dim.end) {
+                tail->next = center;
+                tail = center;
             } else {
-                leaf_tail->next = next_leaf;
-                leaf_tail = next_leaf;
+                struct split_search_node_list *next_leaf;
+                next_leaf = (struct split_search_node_list *)
+                        malloc (sizeof(struct split_search_node_list));
+                next_leaf->node = center;
+                next_leaf->next = NULL;
+
+                if (leaf_head == NULL) {
+                    leaf_head = next_leaf;
+                    leaf_tail = leaf_head;
+                } else {
+                    leaf_tail->next = next_leaf;
+                    leaf_tail = next_leaf;
+                }
             }
+        } else {
+            free_split_search_node(center);
         }
 
         curr = curr->next;
@@ -1213,8 +1239,6 @@ void split(struct interval **S,
         // add in reverse order, top element is first
         struct split_search_node *curr_parent = curr_leaf->node->parent;
         int path[num_sets];
-
-        curr_parent = curr_leaf->node->parent;
         int i = 0;
         while (curr_parent != NULL) {
             struct pair a_dim;
@@ -1246,23 +1270,66 @@ void split(struct interval **S,
                 R_tail = new_nway;
             }
         }
-        curr_leaf = curr_leaf->next;
+        struct split_search_node_list *next = curr_leaf->next;
+        free(curr_leaf);
+        curr_leaf = next;
         count += 1;
     }
-    
-    *R = R_head;
-    /*
-    struct int_list_list *c = R_head;
-    while (c != NULL) {
-        int j;
-        for (j = 0; j < c->size; ++j) {
-            if (j != 0)
-                printf("\t");
-            printf("%d", c->list[j]);
-        }
-        printf("\n");
-        c = c->next;
+
+
+    struct split_search_node_list *curr_clear = to_clear_head;
+    while (curr_clear != NULL) {
+        struct split_search_node_list *next_clear = curr_clear->next;
+        free_split_search_node(curr_clear->node);
+        free(curr_clear);
+        curr_clear = next_clear;
     }
-    */
+
+    *R = R_head;
+}
+//}}}
+
+//{{{void free_split_search_node (struct split_search_node *n)
+void free_split_search_node (struct split_search_node *n)
+{
+    if (n->s_dim != NULL) {
+        free(n->s_dim);
+        n->s_dim = NULL;
+    }
+    free(n);
+}
+//}}}
+
+//{{{void free_int_list_list(struct int_list_list *l)
+void free_int_list_list(struct int_list_list *l)
+{
+    struct int_list_list *curr = l;
+    while (curr != NULL) {
+        struct int_list_list *next = curr->next;
+        free(curr->list);
+        free(curr);
+        curr = next;
+
+    }
+}
+//}}}
+
+//{{{ void add_to_clear_list(struct split_search_node_list **to_clear_head,
+void add_to_clear_list(struct split_search_node_list **to_clear_head,
+                       struct split_search_node_list **to_clear_tail,
+                       struct split_search_node *node)
+{
+    struct split_search_node_list *next_clear =
+        (struct split_search_node_list *)
+        malloc (sizeof(struct split_search_node_list));
+    next_clear->node = node;
+    next_clear->next = NULL;
+    if (*to_clear_head == NULL) {
+        *to_clear_head = next_clear;
+        *to_clear_tail = next_clear;
+    } else {
+        (*to_clear_tail)->next = next_clear;
+        *to_clear_tail = next_clear;
+    }
 }
 //}}}

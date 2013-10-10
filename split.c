@@ -53,4 +53,9 @@ int main(int argc, char **argv)
         printf("\n");
         curr = curr->next;
     }
+
+    free_int_list_list(R);
+
+    for (i = 0; i < num_sets; i++) 
+        free(S[i]);
 }
