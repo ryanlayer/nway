@@ -83,3 +83,9 @@ void priq_combine(pri_queue q, pri_queue q2)
         priq_push(q, e->data, e->pri);
     priq_purge(q2);
 }
+
+void priq_free(pri_queue q)
+{
+    free(q->buf);
+    free(q);
+}

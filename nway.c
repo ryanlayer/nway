@@ -991,21 +991,6 @@ void get_nway_sweep_list(int num_sets,
         }
     }
 
-    /*
-    struct int_list_list *curr = head;
-    while (curr != NULL) {
-        int j;
-        for (j = 0; j < num_sets; ++j) {
-            if (j != 0)
-                printf("\t");
-            printf("%d", curr->list[j]);
-        }
-        printf("\n");
-        curr->list[s_i] = ordering[s_i].end + 1;
-        curr = curr->next;
-    }
-    */
-
     *r_head = head;
     *r_tail = tail;
 }
@@ -1113,6 +1098,8 @@ void sweep(struct interval **S,
     }
 
     *R = nways_head;
+
+    priq_free(q);
 }
 //}}}
 

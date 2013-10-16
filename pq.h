@@ -13,4 +13,5 @@ void priq_push(pri_queue q, int *data, int pri);
 int * priq_pop(pri_queue q, int *pri);
 int* priq_top(pri_queue q, int *pri);
 void priq_combine(pri_queue q, pri_queue q2);
+void priq_free(pri_queue q);
 #endif
