@@ -5,11 +5,6 @@
 #include "pq.h"
 #include "nway.h"
 
-//TODO 
-// - I think that the tags are not getting passed correctly between itterations
-//   most likely b/c they are not stored as pointers.  
-
-
 int main(int argc, char **argv)
 {
     if (argc != 3) {
@@ -44,24 +39,8 @@ int main(int argc, char **argv)
     }
 
     //Tag each interval
-    //struct tag T[num_sets];
     struct tag *T = (struct tag *) malloc(num_sets * sizeof(struct tag));
     for (i = 0; i < num_sets; ++i) {
-        /*
-        struct tag *curr_T = (struct tag *) malloc(sizeof(struct tag));
-        curr_T->num_sets = 1;
-        curr_T->set_ids = (int *) malloc(T[i].num_sets * sizeof(int));
-        curr_T->set_ids[0] = i;
-
-        curr_T->num_intervals = set_sizes[i];
-        curr_T->interval_ids = (int *) 
-                malloc(curr_T->num_intervals * sizeof(int));
-        for (j = 0; j < T[i].num_intervals; j++) {
-            curr_T->interval_ids[j] = j;
-        }
-        T[i] = curr_T;
-        */
-
         T[i].num_sets = 1;
         T[i].set_ids = (int *) malloc(T[i].num_sets * sizeof(int));
         T[i].set_ids[0] = i;
@@ -73,8 +52,7 @@ int main(int argc, char **argv)
         }
     }
 
-    print_interval_sets(S,num_sets,set_sizes);
-    printf("\n");
+    //print_interval_sets(S,num_sets,set_sizes);
 
     struct interval **curr_S = S;
     int *curr_set_sizes = set_sizes;

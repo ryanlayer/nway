@@ -920,7 +920,6 @@ void print_tags(struct tag *T)
 
     int i,j;
 
-    /*
     for (i = 0; i < T->num_intervals; ++i) {
 
         int I[T->num_sets];
@@ -928,7 +927,7 @@ void print_tags(struct tag *T)
         int offset = i * T->num_sets;
 
         for (j = 0; j < T->num_sets; ++j)
-            I[T->set_ids[j]] = T->interval_ids[offset + j];
+            I[j] = T->interval_ids[offset + j];
         for (j = 0; j < T->num_sets; ++j) {
             if (j!=0)
                 printf("\t");
@@ -936,11 +935,9 @@ void print_tags(struct tag *T)
         }
         printf("\n");
     }
-    */
 
+    /*
     for (i = 0; i < T->num_intervals; ++i) {
-        //if (i != 0)
-            //printf("\n");
 
         int offset = i * T->num_sets;
         for (j = 0; j < T->num_sets; ++j) {
@@ -951,7 +948,7 @@ void print_tags(struct tag *T)
         }
         printf("\n");
     }
-    //printf("\n");
+    */
 }
 //}}}
 
