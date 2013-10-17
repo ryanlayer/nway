@@ -5,6 +5,8 @@
 #include "pq.h"
 #include "nway.h"
 
+
+
 //{{{ int compare_interval_by_start (const void *a, const void *b)
 int compare_interval_by_start (const void *a, const void *b)
 {
@@ -860,15 +862,22 @@ void print_interval_sets(struct interval **S,
                          int *set_sizes)
 {
     int i;
-    for (i = 0; i < num_sets; ++i) {
-        int j;
-        for (j = 0; j < set_sizes[i]; ++j) {
-            if (j != 0)
-                printf("\t");
-            printf("%d %d", S[i][j].start, S[i][j].end);
-        }
-        printf("\n");
+    for (i = 0; i < num_sets; ++i) 
+        print_interval_set(S[i], set_sizes[i]);
+}
+//}}}
+
+//{{{void print_interval_set(struct interval *S,
+void print_interval_set(struct interval *S,
+                         int set_size)
+{
+    int j;
+    for (j = 0; j < set_size; ++j) {
+        if (j != 0)
+            printf("\t");
+        printf("%d %d", S[j].start, S[j].end);
     }
+    printf("\n");
 }
 //}}}
 
@@ -905,13 +914,71 @@ void print_path(struct split_search_node *node)
 }
 //}}}
 
-//{{{ void get_nway_sweep_list( int num_sets,
-void get_nway_sweep_list(int num_sets,
+//{{{void print_tags(struct tag *T)
+void print_tags(struct tag *T)
+{
+
+    int i,j;
+
+    /*
+    for (i = 0; i < T->num_intervals; ++i) {
+
+        int I[T->num_sets];
+
+        int offset = i * T->num_sets;
+
+        for (j = 0; j < T->num_sets; ++j)
+            I[T->set_ids[j]] = T->interval_ids[offset + j];
+        for (j = 0; j < T->num_sets; ++j) {
+            if (j!=0)
+                printf("\t");
+            printf("%d",I[j]);
+        }
+        printf("\n");
+    }
+    */
+
+    for (i = 0; i < T->num_intervals; ++i) {
+        //if (i != 0)
+            //printf("\n");
+
+        int offset = i * T->num_sets;
+        for (j = 0; j < T->num_sets; ++j) {
+            if (j!=0)
+                printf(";");
+            printf("%d,%d", T->set_ids[j],
+                            T->interval_ids[offset + j]);
+        }
+        printf("\n");
+    }
+    //printf("\n");
+}
+//}}}
+
+//{{{void print_intersection(struct int_list_list *R) 
+void print_intersection(struct int_list_list *R) {
+    struct int_list_list *curr = R;
+    while (curr != NULL) {
+        int j;
+        for (j = 0; j < curr->size; ++j) {
+            if (j != 0)
+                printf("\t");
+            printf("%d", curr->list[j]);
+        }
+        printf("\n");
+        curr = curr->next;
+    }
+}
+//}}}
+
+//{{{ int get_nway_sweep_list( int num_sets,
+int get_nway_sweep_list(int num_sets,
                          int s_i,
                          struct pair *ordering,
                          struct int_list_list **r_head,
                          struct int_list_list **r_tail)
 {
+    int N = 1;
     // Create the first nway list
     struct int_list_list *head = (struct int_list_list *)
             malloc(sizeof(struct int_list_list));
@@ -950,6 +1017,7 @@ void get_nway_sweep_list(int num_sets,
             int j;
             // make copies
             for (j = ordering[i].start + 1; j <= ordering[i].end; ++j) {
+                N+=1;
                 struct int_list_list *curr = head;
                 while (curr != NULL) {
 
@@ -993,6 +1061,8 @@ void get_nway_sweep_list(int num_sets,
 
     *r_head = head;
     *r_tail = tail;
+
+    return N;
 }
 //}}}
 
@@ -1000,8 +1070,11 @@ void get_nway_sweep_list(int num_sets,
 void sweep(struct interval **S,
            int *set_sizes,
            int num_sets,
-           struct int_list_list **R)
+           struct int_list_list **R,
+           int *num_R)
 {
+    *num_R = 0;
+
     struct int_list_list *nways_head, *nways_tail;
     nways_head = NULL;
     struct pair ordering[num_sets];
@@ -1071,7 +1144,7 @@ void sweep(struct interval **S,
         if (is_nway == num_sets - 1) {
             struct int_list_list *r_head, *r_tail;
 
-            get_nway_sweep_list(num_sets,
+            *num_R += get_nway_sweep_list(num_sets,
                                 s_i,
                                 ordering,
                                 &r_head,
@@ -1095,6 +1168,10 @@ void sweep(struct interval **S,
             if (ordering[i].start >= set_sizes[s_i])
                 scan = 0;
         }
+
+        // we can also stop scanning if there are no other intervals to add
+        if (q->n == 1)
+            scan = 0;
     }
 
     *R = nways_head;
@@ -1320,3 +1397,75 @@ void add_to_clear_list(struct split_search_node_list **to_clear_head,
     }
 }
 //}}}
+
+//{{{ void get_common_set(struct interval **S,
+void get_common_set(struct interval **S,
+                    int *set_sizes,
+                    struct int_list_list *R,
+                    int num_R,
+                    struct tag *T1,
+                    struct tag *T2,
+                    struct tag **newT,
+                    struct interval **X)
+{
+    *X = (struct interval *) malloc(num_R * sizeof(struct interval));
+
+    *newT = (struct tag*) malloc(sizeof(struct tag));
+    (*newT)->num_sets = (T1->num_sets) + (T2->num_sets);
+    (*newT)->num_intervals = num_R;
+
+    // It is important that T1 and T2 are in the same order that intervals ids
+    // are given in R
+    (*newT)->set_ids = (int *) malloc((*newT)->num_sets * sizeof(int));
+    int i,j;
+
+    i = 0;
+    for (j = 0; j < T1->num_sets; ++j) {
+        (*newT)->set_ids[i] = T1->set_ids[j];
+        ++i;
+    }
+
+    for (j = 0; j < T2->num_sets; ++j) {
+        (*newT)->set_ids[i] = T2->set_ids[j];
+        ++i;
+    }
+
+    (*newT)->interval_ids = (int *)
+            malloc((*newT)->num_sets * (*newT)->num_intervals * sizeof(int));
+
+    struct int_list_list *curr = R;
+    i = 0;
+    while (curr != NULL) {
+
+        // Create a new interval that is the region common to the two
+        // intersecting intervals
+        (*X)[i].start= max(S[0][curr->list[0]].start,
+                        S[1][curr->list[1]].start);
+        (*X)[i].end= min(S[0][curr->list[0]].end,
+                        S[1][curr->list[1]].end);
+
+        // Concat the two tags from these intervals (curr->list[0] in T1 and
+        // curr->list[1] in T2) into the tags for the new interval set
+
+        // T1->interval_ids[curr->list[0]] is the index of the first label for
+        // the interval that is part of this intersection, it will extend for
+        // (T1->num_sets - 1) more bases
+        int offset = i * (*newT)->num_sets; 
+        int o = 0;
+
+        for (j = 0; j < T1->num_sets; ++j) {
+            (*newT)->interval_ids[offset + o] =
+                    T1->interval_ids[ curr->list[0] + j ];
+            ++o;
+        }
+        for (j = 0; j < T2->num_sets; ++j) {
+            (*newT)->interval_ids[offset + o] =
+                    T2->interval_ids[ curr->list[1] + j ];
+            ++o;
+        }
+        ++i;
+        curr = curr->next;
+    }
+
+}
+

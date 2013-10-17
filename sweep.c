@@ -37,9 +37,13 @@ int main(int argc, char **argv)
         }
     }
 
+
+    //print_interval_sets(S, num_sets, set_sizes);
+
     struct int_list_list *R;
     R = NULL;
-    sweep(S, set_sizes, num_sets, &R);
+    int num_R;
+    sweep(S, set_sizes, num_sets, &R, &num_R);
 
     struct int_list_list *curr = R;
     while (curr != NULL) {

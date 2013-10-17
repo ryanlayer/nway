@@ -7,6 +7,7 @@ OBJ = nway.o \
 EXECS=nway \
 	split \
 	sweep \
+	itter \
 	sweepq \
 	little_split \
 	little_sweep
@@ -24,6 +25,9 @@ little_sweep: little_sweep.o $(OBJ)
 
 sweep: sweep.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
+
+itter: itter.o $(OBJ)
+	gcc -o $@ $^ $(CFLAGS) -lm
 
 nway: nway_main.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)

@@ -1,6 +1,18 @@
 #ifndef __NWAY_H__
 #define __NWAY_H__
 
+
+#define min(X, Y)  ((X) < (Y) ? (X) : (Y))
+#define max(X, Y)  ((X) > (Y) ? (X) : (Y))
+
+struct tag
+{
+    int *set_ids;
+    int num_sets;
+    int *interval_ids;
+    int num_intervals;
+};
+
 struct interval
 {
     unsigned int start, end;
@@ -62,12 +74,17 @@ void print_interval_sets(struct interval **S,
                          int num_sets,
                          int *set_sizes);
 
+void print_interval_set(struct interval *S,
+                         int set_size);
+
 void print_nway( int num_sets,
                  int s_i,
                  int start_pos,
                  struct pair *ordering);
 
 void print_intersect_tree_node(struct intersect_tree *t);
+
+void print_tags(struct tag *T);
 
 int b_search_starts(int key,
 		    struct interval *S,
@@ -135,14 +152,17 @@ void print_slice(char *name,
 
 void print_path(struct split_search_node *node);
 
+void print_intersection(struct int_list_list *R);
+
 void split();
 
 void sweep(struct interval **S,
            int *set_sizes,
            int num_sets,
-           struct int_list_list **R);
+           struct int_list_list **R,
+           int *num_R);
 
-void get_nway_sweep_list(int num_sets,
+int get_nway_sweep_list(int num_sets,
                          int s_i,
                          struct pair *ordering,
                          struct int_list_list **r_head,
@@ -160,4 +180,14 @@ void free_int_list_list(struct int_list_list *l);
 void add_to_clear_list(struct split_search_node_list **to_clear_head,
                        struct split_search_node_list **to_clear_tail,
                        struct split_search_node *node);
+
+void get_common_set(struct interval **S,
+                    int *set_sizes,
+                    struct int_list_list *R,
+                    int num_R,
+                    struct tag *T1,
+                    struct tag *T2,
+                    struct tag **newT,
+                    struct interval **X);
 #endif
+
