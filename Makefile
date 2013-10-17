@@ -1,4 +1,5 @@
 CC=gcc
+#DFLAGS=-D DEBUGITTER
 CFLAGS=-I.
 DEPS = 
 OBJ = nway.o \
@@ -15,7 +16,7 @@ EXECS=nway \
 all: $(EXECS)
 
 %.o: %.c $(DEPS)
-	$(CC) -g -c -o $@ $< $(CFLAGS)
+	$(CC) -g -c -o $@ $< $(CFLAGS) $(DFLAGS)
 
 little_split: little_split.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)

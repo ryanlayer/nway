@@ -74,9 +74,8 @@ int main(int argc, char **argv)
     }
 
     print_interval_sets(S,num_sets,set_sizes);
+    printf("\n");
 
-
-#if 1
     struct interval **curr_S = S;
     int *curr_set_sizes = set_sizes;
     struct tag *curr_T = T;
@@ -90,6 +89,12 @@ int main(int argc, char **argv)
         int *next_set_sizes = (int *) malloc(num_pairs * sizeof(int));
         struct tag *next_T = (struct tag *)
                 malloc(num_pairs * sizeof(struct tag));
+
+#ifdef DEBUGITTER
+        printf("->\n");
+        print_interval_sets(curr_S,num_pairs,curr_set_sizes);
+        printf("<-\n");
+#endif
 
         for (j = 0; j < num_pairs; j+=2) {
 
@@ -111,13 +116,25 @@ int main(int argc, char **argv)
                            &curr_T[j+1],
                            &tmp_T,
                            &I);
-            //print_intersection(R);
-            //printf("\n");
-            //print_tags(tmp_T);
+#ifdef DEBUGITTER
+            printf("-T0->\n");
+            print_tags(&curr_T[j]);
+            printf("<-T0-\n");
+            printf("-T1->\n");
+            print_tags(&curr_T[j+1]);
+            printf("<-T1-\n");
+            printf("-I->\n");
+            print_intersection(R);
+            printf("<-I-\n");
+            printf("-T->\n");
+            print_tags(tmp_T);
+            printf("<-T-\n");
+#endif
 
             next_S[j/2] = I;
             next_set_sizes[j/2] = num_R;
             next_T[j/2] = *tmp_T;
+
         }
 
         curr_S = next_S;
@@ -126,8 +143,6 @@ int main(int argc, char **argv)
     }
     print_tags(curr_T);
 
-    //}
-#endif
 #if 0
 //{{{ loop over pairs
     struct interval *RS[2];

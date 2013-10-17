@@ -945,7 +945,7 @@ void print_tags(struct tag *T)
         int offset = i * T->num_sets;
         for (j = 0; j < T->num_sets; ++j) {
             if (j!=0)
-                printf(";");
+                printf("\t");
             printf("%d,%d", T->set_ids[j],
                             T->interval_ids[offset + j]);
         }
@@ -1408,6 +1408,16 @@ void get_common_set(struct interval **S,
                     struct tag **newT,
                     struct interval **X)
 {
+
+#ifdef DEBUGITTR
+    printf("=T1=>\n");
+    print_tags(T1);
+    printf("<=T1=\n");
+    printf("=T2=>\n");
+    print_tags(T2);
+    printf("<=T2=\n");
+#endif
+
     *X = (struct interval *) malloc(num_R * sizeof(struct interval));
 
     *newT = (struct tag*) malloc(sizeof(struct tag));
@@ -1436,6 +1446,10 @@ void get_common_set(struct interval **S,
     struct int_list_list *curr = R;
     i = 0;
     while (curr != NULL) {
+        // curr->list is an arry of interval ids that are in an intersection
+        // here we are only looking at pairs of interseitons so 
+        // curr->list[0] is the index in the first set and 
+        // curr->list[1] is the index in the second set
 
         // Create a new interval that is the region common to the two
         // intersecting intervals
@@ -1454,18 +1468,41 @@ void get_common_set(struct interval **S,
         int o = 0;
 
         for (j = 0; j < T1->num_sets; ++j) {
+            // j should point to the set id currently being considered
+            // curr->list[0] is the index of the interval in the current set
+            // that is part of the intersection
+#ifdef DEBUGITTER
+            printf("curr set:%d\tcurr intr:%d\tcurr tag:%d\n",
+                    T1->set_ids[j],
+                    curr->list[0],
+                    T1->interval_ids[ (curr->list[0]*T1->num_sets) + j ]);
+#endif
             (*newT)->interval_ids[offset + o] =
-                    T1->interval_ids[ curr->list[0] + j ];
+                    T1->interval_ids[ (curr->list[0]*T1->num_sets) + j ];
             ++o;
         }
         for (j = 0; j < T2->num_sets; ++j) {
+#ifdef DEBUGITTER
+            printf("curr set:%d\tcurr intr:%d\tcurr tag:%d\n",
+                    T2->set_ids[j],
+                    curr->list[1],
+                    T2->interval_ids[ (curr->list[1]*T2->num_sets) + j ]);
+#endif
             (*newT)->interval_ids[offset + o] =
-                    T2->interval_ids[ curr->list[1] + j ];
+                    T2->interval_ids[ (curr->list[1]*T2->num_sets) + j ];
             ++o;
         }
         ++i;
         curr = curr->next;
     }
+
+#ifdef DEBUGITTER
+    printf("=newT=>\n");
+    print_tags(*newT);
+    printf("<=newT=\n");
+#endif
+
+
 
 }
 
