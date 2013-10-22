@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "timer.h"
 #include "pq.h"
 #include "nway.h"
@@ -1498,8 +1499,224 @@ void get_common_set(struct interval **S,
     print_tags(*newT);
     printf("<=newT=\n");
 #endif
-
-
-
 }
+//}}}
 
+//{{{void read_interval_sets(char *file_name,
+void read_interval_sets(char *file_name,
+                        struct interval ***S,
+                        int **set_sizes,
+                        int *num_sets) 
+{
+    int MAX_LINE_SIZE=1024;
+    char *line = (char *) malloc(MAX_LINE_SIZE * sizeof(char));
+    FILE *fp;
+    char *l_p;
+    char *save_set_ptr;
+
+    *num_sets = 0;
+
+    fp = fopen(file_name, "r");
+
+    if (fp == NULL)
+        perror("Error opening file.");
+
+    struct interval_list_list *il_head = NULL, *il_tail = NULL;
+    struct int_list *list_size_head = NULL, *list_size_tail = NULL;
+
+    while( fgets(line, MAX_LINE_SIZE, fp) != NULL ) {
+        *num_sets = *num_sets + 1;
+        l_p = strtok_r(line, "\t", &save_set_ptr);
+
+        struct interval_list *head = NULL, *tail = NULL;
+        int set_size = 0; 
+
+        while (l_p != NULL) {
+            struct interval_list *i = (struct interval_list *)
+                    malloc(sizeof(struct interval_list));
+            i->curr = (struct interval *) malloc(sizeof(struct interval));
+
+            char *save_interval_ptr;
+            i->curr->start = atoi(strtok_r(l_p, " ", &save_interval_ptr));
+            i->curr->end = atoi(strtok_r(NULL, " ", &save_interval_ptr));
+            i->next = NULL;
+
+            if (head == NULL)
+                head = i;
+            else
+                tail->next = i;
+            
+            tail = i;
+
+            set_size += 1;
+            l_p = strtok_r(NULL, "\t", &save_set_ptr);
+        }
+
+        // take the set_size and add it to the link list of set sizes
+        struct int_list *curr_list_size = (struct int_list *)
+                malloc(sizeof(struct int_list));
+        curr_list_size->value = set_size;
+        curr_list_size->next = NULL;
+        if (list_size_head == NULL)
+            list_size_head = curr_list_size;
+        else
+            list_size_tail->next = curr_list_size;
+        list_size_tail = curr_list_size;
+
+
+        // take the linked list of intervals and add it to the linked 
+        // list of interval lists
+        struct interval_list_list *n = (struct interval_list_list *)
+                malloc(sizeof(struct interval_list_list));
+        n->curr = head;
+        n->next = NULL;
+        
+        if (il_head ==NULL)
+            il_head = n;
+        else
+            il_tail->next = n;
+        
+        il_tail = n;
+    }
+
+    // copy the set size linked list to array of set sizes
+    *set_sizes = (int *) malloc(*num_sets * sizeof(int));
+    int j = 0;
+    struct int_list *size_curr = list_size_head;
+    while ( size_curr != NULL ){
+        (*set_sizes)[j] = size_curr->value;
+        size_curr = size_curr->next;
+        ++j;
+    }
+
+    // copy the linked lists of intervals to array of intervals
+    *S = (struct interval **) malloc(*num_sets * sizeof(struct interval *));
+    struct interval_list_list *il_curr = il_head;
+    j = 0;
+    while ( (il_curr != NULL) ) {
+        (*S)[j] = (struct interval *)
+               malloc(sizeof(struct interval) * (*set_sizes)[j]);
+
+        struct interval_list *i_curr = il_curr->curr;
+        int k = 0;
+        while (i_curr != NULL) {
+            (*S)[j][k].start = i_curr->curr->start;
+            (*S)[j][k].end = i_curr->curr->end;
+            i_curr = i_curr->next;
+            ++k;
+        }
+        
+        il_curr = il_curr->next;
+        ++j;
+    }
+}
+//}}}
+
+
+//{{{void get_simple_sets(struct interval ***S,
+void gen_simple_sets(struct interval ***S,
+                     int **set_sizes,
+                     int num_sets,
+                     int num_elements,
+                     int len,
+                     int seed)
+{
+    *S = (struct interval **) malloc(num_sets * sizeof(struct interval *));
+    *set_sizes = (int *) malloc(num_sets * sizeof(int));
+
+    int i,j;
+    for (i = 0; i < num_sets; i++)
+        (*set_sizes)[i] = num_elements;
+
+    srand(seed);
+    for (i = 0; i < num_sets; i++) {
+        (*S)[i] = (struct interval *)
+               malloc(sizeof(struct interval) * (*set_sizes)[i]);
+        int last_start = 0;
+        for (j = 0; j < (*set_sizes)[i]; j++) {
+            int space = rand() % 20;
+            (*S)[i][j].start = last_start + space;
+            last_start = last_start + space;
+            (*S)[i][j].end = last_start + len;
+        }
+    }
+}
+//}}}
+
+//{{{void parse_args()
+int parse_args(int argc,
+                char **argv,
+                struct interval ***S,
+                int **set_sizes,
+                int *num_sets,
+                int *to_print)
+{
+    char c;
+
+    char *file_name = NULL;
+    *num_sets = 0;
+    int num_elements = 0;
+    int seed = 1;
+    int len = 0;
+    *to_print = 0;
+
+    while ( (c = getopt(argc, argv, "f:n:i:s:l:p") ) != -1) 
+        switch(c) {
+            case 'f':
+                file_name = optarg;
+                break;
+            case 'n':
+                *num_sets = atoi(optarg);
+                break;
+            case 'i':
+                num_elements = atoi(optarg);
+                break;
+            case 's':
+                seed = atoi(optarg);
+                break;
+            case 'l':
+                len = atoi(optarg);
+                break;
+            case 'p':
+                *to_print = 1;
+                break;
+            case 'h':
+                usage(argv[0]);
+                return(1);
+            default:
+                usage(argv[0]);
+                return(1);
+        }
+
+    if (file_name != NULL)
+        read_interval_sets(file_name, S, set_sizes, num_sets);
+    else if ( (num_sets > 0) && (num_elements > 0) && (len > 0) )
+        gen_simple_sets(S, set_sizes, *num_sets,  num_elements, len, seed);
+    else {
+        if (*num_sets <= 0)
+            fprintf(stderr, "\nnumber of sets not given\n");
+        if (num_elements <= 0)
+            fprintf(stderr, "\nnumber of intervals not given\n");
+        if (len <= 0)
+            fprintf(stderr, "\ninterval length not given\n");
+        fprintf(stderr, "\n");
+
+        usage(argv[0]);
+        return(1);
+    }
+
+    return(0);
+}
+//}}}
+
+//{{{ void usage(char *prog)
+void usage(char *prog)
+{
+    fprintf(stderr,"usage:%s [options]\n"
+            "\t-f\tfile name\n"
+            "\t-n\tnumber of sets\n"
+            "\t-i\tnumber of intervals per set\n"
+            "\t-l\tinterval length\n"
+            "\t-s\trandom seed\n", prog);
+}
+//}}}

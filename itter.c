@@ -7,38 +7,27 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 3) {
-        printf("usage:\t%s <num sets> <num elements>\n", argv[0]);
-        return 1;
+    struct interval **S;
+    int *set_sizes;
+    int to_print;
+    int num_sets;
+
+
+    int r = parse_args(argc,
+                       argv,
+                       &S,
+                       &set_sizes,
+                       &num_sets,
+                       &to_print);
+
+    if (to_print != 0) {
+        print_interval_sets(S, num_sets, set_sizes);
+        printf("\n");
     }
 
-    int num_sets = atoi(argv[1]);
-    int num_elements = atoi(argv[2]);
-    int len = 10;
-
-    //struct interval *S[num_sets];
-    struct interval **S = (struct interval **)
-            malloc(num_sets * sizeof(struct interval));
-    //int set_sizes[num_sets];
-    int *set_sizes = (int *) malloc(num_sets * sizeof(int));
-
-    int i,j;
-    for (i = 0; i < num_sets; i++)
-        set_sizes[i] = num_elements;
-
-    for (i = 0; i < num_sets; i++) {
-        S[i] = (struct interval *)
-               malloc(sizeof(struct interval) * set_sizes[i]);
-        int last_start = 0;
-        for (j = 0; j < set_sizes[i]; j++) {
-            int space = rand() % 20;
-            S[i][j].start = last_start + space;
-            last_start = last_start + space;
-            S[i][j].end = last_start + len;
-        }
-    }
 
     //Tag each interval
+    int i,j;
     struct tag *T = (struct tag *) malloc(num_sets * sizeof(struct tag));
     for (i = 0; i < num_sets; ++i) {
         T[i].num_sets = 1;
@@ -51,8 +40,6 @@ int main(int argc, char **argv)
             T[i].interval_ids[j] = j;
         }
     }
-
-    //print_interval_sets(S,num_sets,set_sizes);
 
     struct interval **curr_S = S;
     int *curr_set_sizes = set_sizes;
@@ -68,11 +55,11 @@ int main(int argc, char **argv)
         struct tag *next_T = (struct tag *)
                 malloc(num_pairs * sizeof(struct tag));
 
-#ifdef DEBUGITTER
+//#ifdef DEBUGITTER
         printf("->\n");
         print_interval_sets(curr_S,num_pairs,curr_set_sizes);
         printf("<-\n");
-#endif
+//#endif
 
         for (j = 0; j < num_pairs; j+=2) {
 
@@ -94,6 +81,7 @@ int main(int argc, char **argv)
                            &curr_T[j+1],
                            &tmp_T,
                            &I);
+            print_intersection(R);
 #ifdef DEBUGITTER
             printf("-T0->\n");
             print_tags(&curr_T[j]);

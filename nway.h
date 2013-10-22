@@ -18,6 +18,13 @@ struct interval
     unsigned int start, end;
 };
 
+struct interval_list_list
+{
+    struct interval_list *curr;
+    struct interval_list_list *next;
+};
+
+
 struct interval_list
 {
     struct interval *curr;
@@ -47,6 +54,12 @@ struct intersect_tree_node
 {
     struct intersect_tree *value;
     struct intersect_tree_node *next;
+};
+
+struct int_list
+{
+    int value;
+    struct int_list *next;
 };
 
 struct int_list_list
@@ -189,5 +202,26 @@ void get_common_set(struct interval **S,
                     struct tag *T2,
                     struct tag **newT,
                     struct interval **X);
+
+void read_interval_sets(char *file_name,
+                        struct interval ***S,
+                        int **set_sizes,
+                        int *num_sets);
+
+void gen_simple_sets(struct interval ***S,
+                     int **set_sizes,
+                     int num_sets,
+                     int num_elements,
+                     int len,
+                     int seed);
+
+int parse_args(int argc,
+                char **argv,
+                struct interval ***S,
+                int **set_sizes,
+                int *num_sets,
+                int *to_print);
+
+void usage(char *prog);
 #endif
 

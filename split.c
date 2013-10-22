@@ -7,35 +7,22 @@
 
 int main(int argc, char **argv)
 {
+    struct interval **S;
+    int *set_sizes;
+    int to_print;
+    int num_sets;
 
-    if (argc != 3) {
-        printf("usage:\t%s <num sets> <num elements>\n", argv[0]);
-        return 1;
-    }
 
-    int num_sets = atoi(argv[1]);
-    int num_elements = atoi(argv[2]);
-    int len = 10;
+    int r = parse_args(argc,
+                       argv,
+                       &S,
+                       &set_sizes,
+                       &num_sets,
+                       &to_print);
 
-    struct interval *S[num_sets];
-    struct pair ordering[num_sets];
-
-    int set_sizes[num_sets];
-
-    int i,j;
-    for (i = 0; i < num_sets; i++)
-        set_sizes[i] = num_elements;
-
-    for (i = 0; i < num_sets; i++) {
-        S[i] = (struct interval *)
-               malloc(sizeof(struct interval) * set_sizes[i]);
-        int last_start = 0;
-        for (j = 0; j < set_sizes[i]; j++) {
-            int space = rand() % 20;
-            S[i][j].start = last_start + space;
-            last_start = last_start + space;
-            S[i][j].end = last_start + len;
-        }
+    if (to_print != 0) {
+        print_interval_sets(S, num_sets, set_sizes);
+        printf("\n");
     }
 
     struct int_list_list *R;
@@ -43,6 +30,7 @@ int main(int argc, char **argv)
     split(S, set_sizes, num_sets, &R);
 
     struct int_list_list *curr = R;
+    int i;
     while (curr != NULL) {
         int j;
         for (j = 0; j < curr->size; ++j) {
