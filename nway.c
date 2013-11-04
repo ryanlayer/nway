@@ -1612,8 +1612,7 @@ void read_interval_sets(char *file_name,
 }
 //}}}
 
-
-//{{{void get_simple_sets(struct interval ***S,
+//{{{void gen_simple_sets(struct interval ***S,
 void gen_simple_sets(struct interval ***S,
                      int **set_sizes,
                      int num_sets,
@@ -1632,13 +1631,55 @@ void gen_simple_sets(struct interval ***S,
     for (i = 0; i < num_sets; i++) {
         (*S)[i] = (struct interval *)
                malloc(sizeof(struct interval) * (*set_sizes)[i]);
-        int last_start = 0;
+        int last_end = 0;
         for (j = 0; j < (*set_sizes)[i]; j++) {
             int space = rand() % 20;
-            (*S)[i][j].start = last_start + space;
-            last_start = last_start + space;
-            (*S)[i][j].end = last_start + len;
+            (*S)[i][j].start = last_end + space;
+            last_end = last_end + space + len;
+            (*S)[i][j].end = last_end + space + len;
         }
+    }
+}
+//}}}
+
+//{{{void gen_simple_sets_in_range(struct interval ***S,
+void gen_simple_sets_in_range(struct interval ***S,
+                     int **set_sizes,
+                     int num_sets,
+                     int num_elements,
+                     int len,
+                     int range,
+                     int seed)
+{
+    *S = (struct interval **) malloc(num_sets * sizeof(struct interval *));
+    *set_sizes = (int *) malloc(num_sets * sizeof(int));
+
+    int i,j;
+    for (i = 0; i < num_sets; i++)
+        (*set_sizes)[i] = num_elements;
+
+    srand(seed);
+    for (i = 0; i < num_sets; i++) {
+        (*S)[i] = (struct interval *)
+               malloc(sizeof(struct interval) * (*set_sizes)[i]);
+        for (j = 0; j < (*set_sizes)[i]; j++) {
+            (*S)[i][j].start = rand() % range;
+            (*S)[i][j].end = (*S)[i][j].start + len;
+            /*
+            int space = rand() % 20;
+            (*S)[i][j].start = last_end + space;
+            last_end = last_end + space + len;
+            (*S)[i][j].end = last_end + space + len;
+            */
+        }
+
+    }
+
+    for (i = 0; i < num_sets; ++i) {
+        qsort((*S)[i],
+              (*set_sizes)[i],
+              sizeof(struct interval),
+              compare_interval_by_start);
     }
 }
 //}}}
@@ -1658,9 +1699,10 @@ int parse_args(int argc,
     int num_elements = 0;
     int seed = 1;
     int len = 0;
+    int range = 0;
     *to_print = 0;
 
-    while ( (c = getopt(argc, argv, "f:n:i:s:l:p") ) != -1) 
+    while ( (c = getopt(argc, argv, "f:n:i:s:l:pr:") ) != -1) 
         switch(c) {
             case 'f':
                 file_name = optarg;
@@ -1673,6 +1715,9 @@ int parse_args(int argc,
                 break;
             case 's':
                 seed = atoi(optarg);
+                break;
+            case 'r':
+                range = atoi(optarg);
                 break;
             case 'l':
                 len = atoi(optarg);
@@ -1690,9 +1735,12 @@ int parse_args(int argc,
 
     if (file_name != NULL)
         read_interval_sets(file_name, S, set_sizes, num_sets);
-    else if ( (num_sets > 0) && (num_elements > 0) && (len > 0) )
-        gen_simple_sets(S, set_sizes, *num_sets,  num_elements, len, seed);
-    else {
+    else if ( (num_sets > 0) && (num_elements > 0) && (len > 0) ) {
+        if (range == 0)
+            gen_simple_sets(S, set_sizes, *num_sets,  num_elements, len, seed);
+        else
+            gen_simple_sets_in_range(S, set_sizes, *num_sets,  num_elements, len, range, seed);
+    } else {
         if (*num_sets <= 0)
             fprintf(stderr, "\nnumber of sets not given\n");
         if (num_elements <= 0)
@@ -1717,6 +1765,8 @@ void usage(char *prog)
             "\t-n\tnumber of sets\n"
             "\t-i\tnumber of intervals per set\n"
             "\t-l\tinterval length\n"
+            "\t-r\trange\n"
+            "\t-p\tto print set\n"
             "\t-s\trandom seed\n", prog);
 }
 //}}}

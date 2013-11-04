@@ -36,6 +36,9 @@ nway: nway_main.o $(OBJ)
 split: split.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
+set_test: set_test.o $(OBJ)
+	gcc -o $@ $^ $(CFLAGS)
+
 gen_set: gen_set.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 

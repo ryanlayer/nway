@@ -223,5 +223,13 @@ int parse_args(int argc,
                 int *to_print);
 
 void usage(char *prog);
+
+void gen_simple_sets_in_range(struct interval ***S,
+                     int **set_sizes,
+                     int num_sets,
+                     int num_elements,
+                     int len,
+                     int range,
+                     int seed);
 #endif
 

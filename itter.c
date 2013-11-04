@@ -55,11 +55,11 @@ int main(int argc, char **argv)
         struct tag *next_T = (struct tag *)
                 malloc(num_pairs * sizeof(struct tag));
 
-//#ifdef DEBUGITTER
+#ifdef DEBUGITTER
         printf("->\n");
         print_interval_sets(curr_S,num_pairs,curr_set_sizes);
         printf("<-\n");
-//#endif
+#endif
 
         for (j = 0; j < num_pairs; j+=2) {
 
@@ -81,7 +81,8 @@ int main(int argc, char **argv)
                            &curr_T[j+1],
                            &tmp_T,
                            &I);
-            print_intersection(R);
+            print_interval_set(I,num_R);
+            //print_intersection(R);
 #ifdef DEBUGITTER
             printf("-T0->\n");
             print_tags(&curr_T[j]);
