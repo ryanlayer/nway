@@ -1,9 +1,23 @@
+#include "threadpool.h"
+#include <pthread.h>
 #ifndef __NWAY_H__
 #define __NWAY_H__
 
-
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 #define max(X, Y)  ((X) > (Y) ? (X) : (Y))
+
+struct one_split_args
+{
+    struct split_search_node *curr;
+    struct split_search_node **tail;
+    struct split_search_node_list **to_clear_head;
+    struct split_search_node_list **to_clear_tail;
+    struct split_search_node_list **leaf_head;
+    struct split_search_node_list **leaf_tail;
+    pthread_mutex_t *clear_mutex;
+    pthread_mutex_t *split_mutex;
+    pthread_mutex_t *leaf_mutex;
+};
 
 struct tag
 {
@@ -186,6 +200,12 @@ void split(struct interval **S,
            int num_sets,
            struct int_list_list **R);
 
+void psplit(struct interval **S,
+           int *set_sizes,
+           int num_sets,
+           struct int_list_list **R,
+           int num_threads);
+
 void free_split_search_node (struct split_search_node *n);
 
 void free_int_list_list(struct int_list_list *l);
@@ -220,7 +240,8 @@ int parse_args(int argc,
                 struct interval ***S,
                 int **set_sizes,
                 int *num_sets,
-                int *to_print);
+                int *to_print,
+                int *num_threads);
 
 void usage(char *prog);
 
@@ -231,5 +252,40 @@ void gen_simple_sets_in_range(struct interval ***S,
                      int len,
                      int range,
                      int seed);
+
+void split_sets (struct interval **S,
+                 int *set_sizes,
+                 struct split_search_node_list **to_clear_head,
+                 struct split_search_node_list **to_clear_tail,
+                 struct split_search_node_list **leaf_head,
+                 struct split_search_node_list **leaf_tail,
+                 int num_sets);
+
+int build_split_nway(struct split_search_node_list *leaf_head,
+                     struct int_list_list **R_head,
+                     int num_sets);
+
+/*
+void one_split(struct split_search_node **curr,
+               struct split_search_node **tail,
+               struct split_search_node_list **to_clear_head,
+               struct split_search_node_list **to_clear_tail,
+               struct split_search_node_list **leaf_head,
+               struct split_search_node_list **leaf_tail,
+               pthread_mutex_t *clear_mutex,
+               pthread_mutex_t *split_mutex,
+               pthread_mutex_t *leaf_mutex);
+*/
+void one_split(void *ptr);
+
+void TS_add_to_split_search_node_list(
+                       struct split_search_node_list **head,
+                       struct split_search_node_list **tail,
+                       struct split_search_node *node,
+                       pthread_mutex_t *mutex);
+
+void TS_add_split_search_node(struct split_search_node **tail,
+                              struct split_search_node *new_node,
+                              pthread_mutex_t *mutex);
 #endif
 

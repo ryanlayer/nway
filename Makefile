@@ -4,7 +4,8 @@ CFLAGS=-I.
 DEPS = 
 OBJ = nway.o \
 	pq.o \
-	timer.o
+	timer.o \
+	threadpool.o 
 EXECS=nway \
 	split \
 	sweep \
@@ -34,6 +35,9 @@ nway: nway_main.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
 split: split.o $(OBJ)
+	gcc -o $@ $^ $(CFLAGS)
+
+psplit: psplit.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
 set_test: set_test.o $(OBJ)
