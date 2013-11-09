@@ -11,6 +11,15 @@
 #include <sys/types.h>
 
 //{{{ int compare_interval_by_start (const void *a, const void *b)
+int compare_int (const void *a, const void *b)
+{
+    int *a_i = (int *)a;
+    int *b_i = (int *)b;
+    return *a_i - *b_i;
+}
+//}}}
+
+//{{{ int compare_interval_by_start (const void *a, const void *b)
 int compare_interval_by_start (const void *a, const void *b)
 {
     struct interval *a_i = (struct interval *)a;
@@ -1186,161 +1195,42 @@ void split(struct interval **S,
            int num_sets,
            struct int_list_list **R)
 {
-    struct split_search_node_list *to_clear_head = NULL, 
-                                 *to_clear_tail = NULL;
-
-    struct split_search_node *root_node = 
-        (struct split_search_node *) malloc (
-        sizeof(struct split_search_node));
-
-    add_to_clear_list(&to_clear_head, &to_clear_tail, root_node);
-
-    root_node->parent = NULL;
-    root_node->S = S;
-    root_node->S_dim.start = 0;
-    root_node->S_dim.end = num_sets - 1;
-    root_node->s_dim = (struct pair *) 
-        malloc (num_sets * sizeof(struct pair));
-
-    int i;
-    for (i = 0; i < num_sets; ++i) {
-        root_node->s_dim[i].start = 0;
-        root_node->s_dim[i].end = set_sizes[i] - 1;
-    }
-
-    root_node->has_empty = 0;
-    root_node->next = NULL;
-    struct split_search_node *head, *tail;
-    head = root_node;
-    tail = root_node;
-    
-
-
     struct split_search_node_list *leaf_head, *leaf_tail;
-    leaf_head = NULL;
+    struct split_search_node_list *to_clear_head, *to_clear_tail;
 
-    struct split_search_node *curr = head;
-    while (curr != NULL) {
-        struct split_search_node *left = 
-                (struct split_search_node *) malloc (
-                sizeof(struct split_search_node));
-        left->next = NULL;
-        left->has_empty = 0;
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    split_sets(S,
+               set_sizes,
+               &to_clear_head,
+               &to_clear_tail,
+               &leaf_head,
+               &leaf_tail,
+               num_sets);
 
-        struct split_search_node *center =
-                (struct split_search_node *) malloc (
-                sizeof(struct split_search_node));
-        center->next = NULL;
-        center->has_empty = 0;
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
 
-        struct split_search_node *right =
-                (struct split_search_node *) malloc (
-                sizeof(struct split_search_node));
-        right->next = NULL;
-        right->has_empty = 0;
+    struct int_list_list *R_head;
 
-        split_search(curr, left, center, right);
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
 
-        /* 
-         * For any of the splits that have all non-zero subs sets,
-         * add the split onto the queue to be re-split
-         */
-        if (left->has_empty == 0) {
-            tail->next = left;
-            tail = left;
-            add_to_clear_list(&to_clear_head, &to_clear_tail, left);
-        } else {
-            free_split_search_node(left);
-        }
+    int count = build_split_nway(leaf_head, &R_head, num_sets);
 
-        if (right->has_empty == 0) {
-            tail->next = right;
-            tail = right;
-            add_to_clear_list(&to_clear_head, &to_clear_tail, right);
-        } else {
-            free_split_search_node(right);
-        }
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int build_split_nway_time = report();
+#endif
 
-        if ( center->has_empty == 0) {
-            /* 
-             * Do not re-split the center if the next level is the last level
-             * If the next level is the last level, add center onto the list of
-             * leaf nodes
-             */
-            add_to_clear_list(&to_clear_head, &to_clear_tail, center);
-            if (center->S_dim.start < center->S_dim.end) {
-                tail->next = center;
-                tail = center;
-            } else {
-                struct split_search_node_list *next_leaf;
-                next_leaf = (struct split_search_node_list *)
-                        malloc (sizeof(struct split_search_node_list));
-                next_leaf->node = center;
-                next_leaf->next = NULL;
-
-                if (leaf_head == NULL) {
-                    leaf_head = next_leaf;
-                    leaf_tail = leaf_head;
-                } else {
-                    leaf_tail->next = next_leaf;
-                    leaf_tail = next_leaf;
-                }
-            }
-        } else {
-            free_split_search_node(center);
-        }
-
-        curr = curr->next;
-    }
-
-    struct split_search_node_list *curr_leaf = leaf_head;
-
-    struct int_list_list *R_head, *R_tail;
-    R_head = NULL;
-    int count = 0;
-    while (curr_leaf != NULL) {
-        // build path to leaf
-        // add in reverse order, top element is first
-        struct split_search_node *curr_parent = curr_leaf->node->parent;
-        int path[num_sets];
-        int i = 0;
-        while (curr_parent != NULL) {
-            struct pair a_dim;
-            a_dim = curr_parent->s_dim[0];
-            int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
-            path[num_sets - 1 - i - 1] = a_mid;
-            curr_parent = curr_parent->parent;
-            ++i;
-        }
-
-        for (i = curr_leaf->node->s_dim[0].start;
-             i <= curr_leaf->node->s_dim[0].end;
-             ++i) {
-            struct int_list_list *new_nway = 
-                (struct int_list_list *)
-                malloc (sizeof (struct int_list_list));
-            new_nway->size = num_sets;
-            new_nway->next = NULL;
-            path[num_sets - 1] = i;
-
-            new_nway->list = (int *)malloc(num_sets * sizeof(int));
-            memcpy(new_nway->list, path ,num_sets * sizeof(int));
-
-            if (R_head == NULL) {
-                R_head = new_nway;
-                R_tail = new_nway;
-            } else {
-                R_tail->next = new_nway;
-                R_tail = new_nway;
-            }
-        }
-        struct split_search_node_list *next = curr_leaf->next;
-        free(curr_leaf);
-        curr_leaf = next;
-        count += 1;
-    }
-
-
+    // free up space
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
     struct split_search_node_list *curr_clear = to_clear_head;
     while (curr_clear != NULL) {
         struct split_search_node_list *next_clear = curr_clear->next;
@@ -1348,8 +1238,30 @@ void split(struct interval **S,
         free(curr_clear);
         curr_clear = next_clear;
     }
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int free_time = report();
+#endif
+    
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   build_split_nway_time +
+                                   free_time;
+    printf("%lu\t%lu\t%lu\t%lu\t"
+           "%f\t%f\t%f\n", split_sets_time,
+                           build_split_nway_time,
+                           free_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)build_split_nway_time) / ((double)total_time)),
+                   ( ((double)free_time) / ((double)total_time)));
+    
+#endif
+
 
     *R = R_head;
+
 }
 //}}}
 
@@ -2187,6 +2099,84 @@ void gen_simple_sets_in_range(struct interval ***S,
 }
 //}}}
 
+//{{{ int point_overlap_test(int start,
+int point_overlap_test(int start,
+                       int end,
+                       int *points,
+                       int num_points,
+                       int len)
+{
+    int i, num_overlaps = 0;
+
+    for (i = 0; i < num_points; ++i) {
+        if ( (start <= points[i] + len) &&
+             (end >= points[i] - len) )
+            ++num_overlaps;
+    }
+
+    return num_overlaps;
+}
+//}}}
+
+//{{{void gen_simple_sets_in_range(struct interval ***S,
+void gen_sets_in_range_with_num_inter(struct interval ***S,
+                                      int **set_sizes,
+                                      int num_sets,
+                                      int num_elements,
+                                      int len,
+                                      int range,
+                                      int seed,
+                                      int num_i)
+{
+    *S = (struct interval **) malloc(num_sets * sizeof(struct interval *));
+    *set_sizes = (int *) malloc(num_sets * sizeof(int));
+
+
+    int i,j;
+    for (i = 0; i < num_sets; i++)
+        (*set_sizes)[i] = num_elements;
+
+    srand(seed);
+
+    int i_points[num_i];
+    for (i = 0; i < num_i; i++)
+        i_points[i] = rand() % range;
+
+    qsort(i_points, num_i, sizeof(int), compare_int);
+
+    for (i = 0; i < num_sets; i++) {
+        (*S)[i] = (struct interval *)
+               malloc(sizeof(struct interval) * (*set_sizes)[i]);
+
+        for (j = 0; j < num_i; j++) {
+            (*S)[i][j].start = i_points[j] - (rand() % len);
+            (*S)[i][j].end = (*S)[i][j].start + len;
+        }
+
+        //for ( ; j < (*set_sizes)[i]; j++) {
+        while ( j < (*set_sizes)[i] ) {
+            (*S)[i][j].start = rand() % range;
+            (*S)[i][j].end = (*S)[i][j].start + len;
+
+            int num_overlaps = point_overlap_test((*S)[i][j].start,
+                                                  (*S)[i][j].end,
+                                                  i_points,
+                                                  num_i,
+                                                  len);
+            if (num_overlaps == 0)
+                ++j;
+        }
+    }
+
+    for (i = 0; i < num_sets; ++i) {
+        qsort((*S)[i],
+              (*set_sizes)[i],
+              sizeof(struct interval),
+              compare_interval_by_start);
+    }
+}
+//}}}
+
 //{{{void parse_args()
 int parse_args(int argc,
                 char **argv,
@@ -2206,11 +2196,15 @@ int parse_args(int argc,
     int range = 0;
     *to_print = 0;
     *num_threads = 1;
+    int num_inters = 0;
 
-    while ( (c = getopt(argc, argv, "f:n:i:s:l:pr:t:") ) != -1) 
+    while ( (c = getopt(argc, argv, "f:n:i:s:l:pr:t:I:") ) != -1) 
         switch(c) {
             case 'f':
                 file_name = optarg;
+                break;
+            case 'I':
+                num_inters = atoi(optarg);
                 break;
             case 't':
                 *num_threads = atoi(optarg);
@@ -2245,9 +2239,29 @@ int parse_args(int argc,
         read_interval_sets(file_name, S, set_sizes, num_sets);
     else if ( (num_sets > 0) && (num_elements > 0) && (len > 0) ) {
         if (range == 0)
-            gen_simple_sets(S, set_sizes, *num_sets,  num_elements, len, seed);
+            gen_simple_sets(S,
+                            set_sizes,
+                            *num_sets,
+                            num_elements,
+                            len,
+                            seed);
+        else if (num_inters != 0)
+            gen_sets_in_range_with_num_inter(S,
+                                             set_sizes,
+                                             *num_sets,
+                                             num_elements,
+                                             len,
+                                             range,
+                                             seed,
+                                             num_inters);
         else
-            gen_simple_sets_in_range(S, set_sizes, *num_sets,  num_elements, len, range, seed);
+            gen_simple_sets_in_range(S,
+                                     set_sizes,
+                                     *num_sets,
+                                     num_elements,
+                                     len,
+                                     range,
+                                     seed);
     } else {
         if (*num_sets <= 0)
             fprintf(stderr, "\nnumber of sets not given\n");
@@ -2272,6 +2286,7 @@ void usage(char *prog)
             "\t-f\tfile name\n"
             "\t-n\tnumber of sets\n"
             "\t-i\tnumber of intervals per set\n"
+            "\t-I\tnumber of intersections\n"
             "\t-l\tinterval length\n"
             "\t-r\trange\n"
             "\t-p\tto print set\n"

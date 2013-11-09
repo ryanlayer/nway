@@ -97,6 +97,14 @@ struct split_search_node_list {
     struct split_search_node_list *next;
 };
 
+int compare_int (const void *a, const void *b);
+
+int point_overlap_test(int start,
+                       int end,
+                       int *points,
+                       int num_points,
+                       int len);
+
 void print_interval_sets(struct interval **S,
                          int num_sets,
                          int *set_sizes);
@@ -252,6 +260,15 @@ void gen_simple_sets_in_range(struct interval ***S,
                      int len,
                      int range,
                      int seed);
+
+void gen_sets_in_range_with_num_inter(struct interval ***S,
+                                      int **set_sizes,
+                                      int num_sets,
+                                      int num_elements,
+                                      int len,
+                                      int range,
+                                      int seed,
+                                      int num_i);
 
 void split_sets (struct interval **S,
                  int *set_sizes,

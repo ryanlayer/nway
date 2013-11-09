@@ -12,6 +12,7 @@ int main(int argc, char **argv)
     int *set_sizes;
     int to_print;
     int num_sets;
+    int num_threads;
 
 
     int r = parse_args(argc,
@@ -19,19 +20,26 @@ int main(int argc, char **argv)
                        &S,
                        &set_sizes,
                        &num_sets,
-                       &to_print);
+                       &to_print,
+                       &num_threads);
 
+    /*
     if (to_print != 0) {
         print_interval_sets(S, num_sets, set_sizes);
         printf("\n");
     }
+    */
 
     struct int_list_list *R;
     R = NULL;
+#ifndef IN_TIME_SPLIT
     start();
+#endif
     split(S, set_sizes, num_sets, &R);
+#ifndef IN_TIME_SPLIT
     stop();
     printf("%lu\n", report());
+#endif
 
     int i;
     if (to_print != 0) {
