@@ -1,6 +1,8 @@
 CC=gcc
 #DFLAGS=-D DEBUGITTER
-CFLAGS=-I.
+DFLAGS=-D IN_TIME_SPLIT
+#CFLAGS=-I. -lpthread -g -pg
+CFLAGS=-I. -lpthread -O3
 DEPS = 
 OBJ = nway.o \
 	pq.o \
