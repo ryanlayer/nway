@@ -1659,7 +1659,7 @@ void psplit_sets (struct interval **S,
 
         int num_added = 0;
         while (curr != NULL) {
-            //fprintf(stderr, "curr:%p\n", curr);
+            fprintf(stderr, "curr:%p\n", curr);
             struct one_split_args *args = (struct one_split_args *)
                     malloc(sizeof(struct one_split_args));
             args->curr = curr;
@@ -1695,15 +1695,18 @@ void psplit_sets (struct interval **S,
                 last);
         */
 
+        /*
         while ((threadpool_size(pool) > 0) || 
                (threadpool_running(pool) > 0) ) {
-            //fprintf(stderr,"*\n");
-            usleep(100);
+            usleep(1);
         }
+        */
         
         curr = last->next;
 
-        if (num_added == 0)
+        if ( (threadpool_size(pool) == 0) &&
+             (threadpool_running(pool) > 0) &&
+             (num_added == 0) )
             to_stop = 1;
     }
 }
