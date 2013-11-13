@@ -894,14 +894,30 @@ void print_interval_set(struct interval *S,
 //}}}
 
 //{{{void print_slice(char *name,
-void print_slice(char *name,
+void print_slice(int id,
                  struct split_search_node *slice)
 {
-    int i;
-    for(i = 0; i < slice->S_dim.end - slice->S_dim.start + 1; ++i)
-        printf("\t%d\t%d\n",
-                slice->s_dim[i].start,
-                slice->s_dim[i].end);
+    /*
+    struct split_search_node {
+        struct split_search_node *parent;
+        struct split_search_node *next;
+        struct interval **S;
+        struct pair S_dim;
+        struct pair *s_dim;
+        int has_empty;
+    };
+    */
+
+
+    int i,j;
+    for(i = 0; i < slice->S_dim.end - slice->S_dim.start + 1; ++i) {
+        for(j = slice->s_dim[i].start; j <= slice->s_dim[i].end; ++j) {
+            if (j != slice->s_dim[i].start)
+                printf("\t");
+            printf("%d %d", slice->S[i][j].start, slice->S[i][j].end);
+        }
+        printf("\n");
+    }
 }
 //}}}
 
@@ -1174,13 +1190,15 @@ void sweep(struct interval **S,
         // check to see if we can stop scanning To stop scanning the last
         // element in a set must have been moved out of context
         for (i = 0; i < num_sets; i++) {
-            if (ordering[i].start >= set_sizes[s_i])
+            if (ordering[i].start >= set_sizes[i]) {
                 scan = 0;
+            }
         }
 
         // we can also stop scanning if there are no other intervals to add
-        if (q->n == 1)
+        if (q->n == 1) {
             scan = 0;
+        }
     }
 
     *R = nways_head;
@@ -1248,7 +1266,7 @@ void split(struct interval **S,
     unsigned long int total_time = split_sets_time + 
                                    build_split_nway_time +
                                    free_time;
-    printf("%lu\t%lu\t%lu\t%lu\t"
+    printf("split:%lu\tbuild:%lu\tfree:%lu\ttotal:%lu\t"
            "%f\t%f\t%f\n", split_sets_time,
                            build_split_nway_time,
                            free_time,
@@ -1325,6 +1343,12 @@ void split_sets (struct interval **S,
         right->has_empty = 0;
 
         split_search(curr, left, center, right);
+        //printf("left\n");
+        //print_slice(0, left);
+        //printf("center\n");
+        //print_slice(0, center);
+        //printf("right\n");
+        //print_slice(0, right);
 
         /* 
          * For any of the splits that have all non-zero subs sets,
@@ -1923,7 +1947,7 @@ void read_interval_sets(char *file_name,
                         int **set_sizes,
                         int *num_sets) 
 {
-    int MAX_LINE_SIZE=1024;
+    int MAX_LINE_SIZE=1048576;
     char *line = (char *) malloc(MAX_LINE_SIZE * sizeof(char));
     FILE *fp;
     char *l_p;

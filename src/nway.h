@@ -182,7 +182,7 @@ void split_search(struct split_search_node *query,
                   struct split_search_node *center,
                   struct split_search_node *right);
 
-void print_slice(char *name,
+void print_slice(int id,
                  struct split_search_node *slice);
 
 void print_path(struct split_search_node *node);
