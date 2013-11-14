@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "pq.h"
 #include "nway.h"
 #include "timer.h"
 
+
 int main(int argc, char **argv)
 {
-
     struct interval **S;
     int *set_sizes;
     int to_print;
@@ -33,16 +32,16 @@ int main(int argc, char **argv)
 
     struct int_list_list *R;
     R = NULL;
-    int num_R;
 #ifndef IN_TIME_SPLIT
     start();
 #endif
-    sweep(S, set_sizes, num_sets, &R, &num_R);
+    split_centers(S, set_sizes, num_sets, &R);
 #ifndef IN_TIME_SPLIT
     stop();
     printf("%lu\n", report());
 #endif
 
+    int i;
     if (to_print != 0) {
         struct int_list_list *curr = R;
         while (curr != NULL) {
@@ -59,8 +58,6 @@ int main(int argc, char **argv)
 
     free_int_list_list(R);
 
-    int i;
     for (i = 0; i < num_sets; i++) 
         free(S[i]);
 }
-

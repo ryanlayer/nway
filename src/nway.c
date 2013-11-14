@@ -399,6 +399,31 @@ void nway_step(int num_sets,
 //}}}
 
 //{{{ void split_search(struct split_search_node *query,
+void get_center_split(struct interval **S,
+                      int num_sets,
+                      int *set_sizes,
+                      struct interval root,
+                      struct pair *centers,
+                      int *is_empty)
+{
+
+    int i;
+    *is_empty = 0;
+    int center_is_empty = 0;
+    for (i = 1; i < num_sets; ++i) {
+        center_is_empty = 0;
+        struct interval *s = S[i];
+        struct pair dim;
+        dim.start = 0;
+        dim.end = set_sizes[i];
+
+        get_center(root, s, dim, &centers[i], &center_is_empty);
+        *is_empty = *is_empty + center_is_empty;
+    }
+}
+//}}}
+
+//{{{ void split_search_o(struct split_search_node *query,
 void split_search_o(struct split_search_node *query,
                   struct split_search_node *left,
                   struct split_search_node *center,
@@ -592,6 +617,45 @@ void split_search(struct split_search_node *query,
     }
 }
 //}}}
+
+//{{{ void get_center(struct interval *a,
+void get_center(struct interval root,
+                struct interval *s,
+                struct pair s_dim,
+                struct pair *s_center,
+                int *center_is_empty)
+{
+    // s_left_i is the index of the last interval to end before
+    // the current interval (root) starts
+    int s_left_i = b_search_ends(root.start,
+                                 s,
+                                 s_dim.start - 1,
+                                 s_dim.end + 1) 
+                    - 1;
+
+    // s_right_i is the index of the first interval to start after
+    // the current interval (root) ends
+    int s_right_i = b_search_starts(root.end,
+                                    s,
+                                    s_dim.start - 1,
+                                    s_dim.end + 1);
+
+    if ( (s_right_i <= s_dim.end) && (root.end == s[s_right_i].start) )
+        ++s_right_i;
+
+    // s_left_i and s_right_i do not intersect root
+    // the current interval (root) intersects anything in the inclusive
+    // range of s_left_i+1,s_right_i-1
+    s_center->start = s_left_i + 1;
+    s_center->end = s_right_i - 1;
+
+    // if s_center.start > s_center.end, then the intersection is empty
+    if (s_center->start > s_center->end)
+        *center_is_empty = 1;
+
+    //printf("~%d\n", *center_is_empty);
+}
+//}}} 
 
 //{{{ void get_left_center_right(struct interval *a,
 void get_left_center_right(struct interval *a,
@@ -1201,6 +1265,11 @@ void sweep(struct interval **S,
            struct int_list_list **R,
            int *num_R)
 {
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
     *num_R = 0;
 
     struct int_list_list *nways_head, *nways_tail;
@@ -1307,6 +1376,19 @@ void sweep(struct interval **S,
     *R = nways_head;
 
     priq_free(q);
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    printf("sweep:%lu\ttotal:%lu\n", sweep_time,sweep_time);
+#endif
+
+
+
+
 }
 //}}}
 
@@ -1663,6 +1745,113 @@ void split_sweep(struct interval **S,
 
     *R = R_head;
 
+}
+//}}}
+
+//{{{ void split_sweep(struct interval **S,
+void split_centers(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R)
+{
+    // alloc a long array of pairs to hold all of the center slices
+    // for each element in the first set
+    struct pair *centers = (struct pair*)
+            malloc(num_sets*set_sizes[0]*sizeof(struct split_search_node));
+    int *empties = (int *) malloc(set_sizes[0]*sizeof(int));
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
+    l1_split_sets_centers (S,
+                           set_sizes,
+                           num_sets,
+                           centers,
+                           empties);
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    int i;
+    struct int_list_list *R_head=NULL, *R_tail=NULL;
+    for(i = 0; i < set_sizes[0]; ++i) {
+        if (empties[i] == 0) {
+            /*
+            int j;
+            for(j = 0; j < num_sets; ++j) {
+                printf("%d %d\t", centers[j+i*num_sets].start,
+                                  centers[j+i*num_sets].end);
+            }
+            printf("\n");
+            */
+            int num_R;
+            struct int_list_list *curr_head, *curr_tail;
+            sweep_subset(S,
+                         num_sets,
+                         &centers[i*num_sets],
+                         &curr_head,
+                         &curr_tail,
+                         &num_R);
+
+            if (num_R > 0) {
+                if (R_head == NULL) {
+                    R_head = curr_head;
+                    R_tail = curr_tail;
+                } else {
+                    R_tail->next = curr_head;
+                    R_tail = curr_tail;
+                }
+            }
+
+        }
+    }
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   sweep_sets_time;
+    printf("split:%lu\tsweep:%lu\ttotal:%lu\t"
+           "%f\t%f\n", split_sets_time,
+                           sweep_sets_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)sweep_sets_time) / ((double)total_time)));
+    
+#endif
+
+    *R = R_head;
+}
+//}}}
+
+//{{{ void l1_split_sets_centers (struct interval **S,
+void l1_split_sets_centers (struct interval **S,
+                            int *set_sizes,
+                            int num_sets,
+                            struct pair *centers,
+                            int *empties)
+{
+    int i;
+    // for each element in S[0], get the center split
+    for (i = 0; i < set_sizes[0]; ++i) {
+        // the first element in the center is going to be this element
+        centers[i*num_sets].start = i;        
+        centers[i*num_sets].end = i;        
+        get_center_split(S,
+                         num_sets,
+                         set_sizes,
+                         S[0][i],
+                         &centers[i*num_sets],
+                         &empties[i]);
+    }
 }
 //}}}
 

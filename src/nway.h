@@ -309,6 +309,30 @@ void l1_split_sets_o (struct interval **S,
                  struct split_search_node_list **leaf_tail,
                  int num_sets);
 
+void l1_split_sets_centers (struct interval **S,
+                            int *set_sizes,
+                            int num_sets,
+                            struct pair *centers,
+                            int *empties);
+
+void get_center_split(struct interval **S,
+                      int num_sets,
+                      int *set_sizes,
+                      struct interval root,
+                      struct pair *centers,
+                      int *is_empty);
+
+void get_center(struct interval root,
+                struct interval *s,
+                struct pair s_dim,
+                struct pair *s_center,
+                int *center_is_empty);
+
+void split_centers(struct interval **S,
+                   int *set_sizes,
+                   int num_sets,
+                   struct int_list_list **R);
+
 void sweep_subset(struct interval **S,
                   int num_sets,
                   struct pair *s_dim,
