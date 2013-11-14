@@ -1310,6 +1310,136 @@ void sweep(struct interval **S,
 }
 //}}}
 
+//{{{ void sweep_subset(struct interval **S,
+void sweep_subset(struct interval **S,
+                  int num_sets,
+                  struct pair *s_dim,
+                  struct int_list_list **R_head,
+                  struct int_list_list **R_tail,
+                  int *num_R)
+{
+    *num_R = 0;
+
+    struct int_list_list *nways_head, *nways_tail;
+    nways_head = NULL;
+    struct pair ordering[num_sets];
+
+    int i;
+    // Initialize the ordering for S
+    for (i = 0; i < num_sets; i++) {
+        //ordering[i].start = 0;
+        //ordering[i].end = -1;
+        ordering[i].start = s_dim[i].start;
+        ordering[i].end = s_dim[i].start - 1;
+    }
+
+    int next[num_sets];
+    // next will be the first interval defined by s_dim[i].start
+    for (i = 0; i < num_sets; i++) {
+        //next[i] = 0;
+        next[i] = s_dim[i].start;
+        //printf("%d %d\t", s_dim[i].start, s_dim[i].end);
+    }
+    //printf("\n");
+
+    int set_ids[num_sets];
+    for (i = 0; i < num_sets; i++)
+        set_ids[i] = i;
+
+    pri_queue q = priq_new(0);
+    for (i = 0; i < num_sets; ++i) {
+        priq_push(q, &set_ids[i], S[i][next[i]].start);
+        next[i] += 1;
+    }
+
+    int scan = 1;
+    while (scan == 1) {
+        int start_pos;
+
+        // get the next element to place into an ordering
+        // s_i is the index of the set in S that will constribute the
+        // element start_pos is the starting position of that element
+        int *s_i_p = priq_pop(q, &start_pos);
+        int s_i = *s_i_p;
+        //printf("%d %d\n", s_i, start_pos);
+
+        // remove anything from the orderings that ends before start_pos
+        for (i = 0; i < num_sets; i++) {
+            int j;
+            for (j = ordering[i].start; j <= ordering[i].end; ++j) {
+                if (S[i][j].end < start_pos)  {
+                    //printf("rem:%d\t%d %d\n",i,S[i][j].start,S[i][j].end);
+                    ordering[i].start += 1;
+                }
+            }
+        }
+
+        // Make sure that there is somethin left to push before pushing
+        // the next elemetn from S[s_i]
+        //if (next[s_i] < set_sizes[s_i]) {
+        // s_dim is an inclusive range
+        if (next[s_i] <= s_dim[s_i].end) {
+            priq_push(q, &set_ids[s_i], S[s_i][next[s_i]].start);
+            next[s_i] += 1;
+        }
+
+        // Check to see if adding this element causes an n-way
+        // intersection
+        int is_nway = 0;
+        // Check the orders before s_i
+        for (i = 0; i < s_i; i++)
+            if (ordering[i].end >= ordering[i].start)
+                is_nway += 1;
+        // Check the orders after s_i
+        for (i = s_i + 1; i < num_sets; i++)
+            if (ordering[i].end >= ordering[i].start)
+                is_nway += 1;
+
+        // If all other orderings contain elements, than we have an n-way
+        // intersection, print it
+        if (is_nway == num_sets - 1) {
+            struct int_list_list *r_head, *r_tail;
+
+            *num_R += get_nway_sweep_list(num_sets,
+                                s_i,
+                                ordering,
+                                &r_head,
+                                &r_tail);
+
+            if (nways_head == NULL) {
+                nways_head = r_head;
+                nways_tail = r_tail;
+            } else {
+                nways_tail->next = r_head;
+                nways_tail = r_tail;
+            }
+        }
+
+        // Add the element to the ordering for that set
+        ordering[s_i].end+=1;
+
+        // check to see if we can stop scanning To stop scanning the last
+        // element in a set must have been moved out of context
+        for (i = 0; i < num_sets; i++) {
+            //if (ordering[i].start >= set_sizes[i]) {
+            if (ordering[i].start > s_dim[i].end) {
+                scan = 0;
+            }
+        }
+
+        // we can also stop scanning if there are no other intervals to add
+        if (q->n == 1) {
+            scan = 0;
+        }
+    }
+
+    *R_head = nways_head;
+    *R_tail = nways_tail;
+
+    priq_free(q);
+}
+//}}}
+
 //{{{ void split_o(struct interval **S,
 void split_o(struct interval **S,
            int *set_sizes,
@@ -1462,6 +1592,188 @@ void split(struct interval **S,
 
     *R = R_head;
 
+}
+//}}}
+
+//{{{ void split_sweep(struct interval **S,
+void split_sweep(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R)
+{
+    struct split_search_node_list *leaf_head, *leaf_tail;
+    struct split_search_node_list *to_clear_head, *to_clear_tail;
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    l1_split_sets_o(S,
+                    set_sizes,
+                    &to_clear_head,
+                    &to_clear_tail,
+                    &leaf_head,
+                    &leaf_tail,
+                    num_sets);
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    struct split_search_node_list *curr = leaf_head;
+
+    struct int_list_list *R_head=NULL, *R_tail=NULL;
+    while (curr != NULL) {
+        struct split_search_node *node = curr->node;
+        struct int_list_list *curr_head, *curr_tail;
+
+        int num_R;
+        sweep_subset(S, num_sets, node->s_dim, &curr_head, &curr_tail, &num_R);
+
+        if (num_R > 0) {
+            if (R_head == NULL) {
+                R_head = curr_head;
+                R_tail = curr_tail;
+            } else {
+                R_tail->next = curr_head;
+                R_tail = curr_tail;
+            }
+        }
+
+        curr = curr->next;
+    }
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   sweep_sets_time;
+    printf("split:%lu\tsweep:%lu\ttotal:%lu\t"
+           "%f\t%f\n", split_sets_time,
+                           sweep_sets_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)sweep_sets_time) / ((double)total_time)));
+    
+#endif
+
+    *R = R_head;
+
+}
+//}}}
+
+//{{{void split_sets (struct interval **S,
+void l1_split_sets_o (struct interval **S,
+                      int *set_sizes,
+                      struct split_search_node_list **to_clear_head,
+                      struct split_search_node_list **to_clear_tail,
+                      struct split_search_node_list **leaf_head,
+                      struct split_search_node_list **leaf_tail,
+                      int num_sets)
+{
+    struct split_search_node *root_node = 
+        (struct split_search_node *) malloc (
+        sizeof(struct split_search_node));
+
+    //add_to_clear_list(to_clear_head, to_clear_tail, root_node);
+
+    //root_node->parent = NULL;
+    root_node->S = S;
+    root_node->S_dim.start = 0;
+    root_node->S_dim.end = num_sets - 1;
+    root_node->s_dim = (struct pair *) 
+        malloc (num_sets * sizeof(struct pair));
+
+    int i;
+    for (i = 0; i < num_sets; ++i) {
+        root_node->s_dim[i].start = 0;
+        root_node->s_dim[i].end = set_sizes[i] - 1;
+    }
+
+    root_node->has_empty = 0;
+    root_node->next = NULL;
+
+    struct split_search_node *head, *tail;
+    head = root_node;
+    tail = root_node;
+    
+    *leaf_head = NULL;
+
+    struct split_search_node *curr = head;
+    while (curr != NULL) {
+        struct split_search_node *left = 
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        left->next = NULL;
+        left->has_empty = 0;
+
+        struct split_search_node *center =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        center->next = NULL;
+        center->has_empty = 0;
+
+        struct split_search_node *right =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        right->next = NULL;
+        right->has_empty = 0;
+
+        split_search_o(curr, left, center, right);
+
+        /* 
+         * For any of the splits that have all non-zero subs sets,
+         * add the split onto the queue to be re-split
+         */
+        if (left->has_empty == 0) {
+            tail->next = left;
+            tail = left;
+            //add_to_clear_list(to_clear_head, to_clear_tail, left);
+        } else {
+            free_split_search_node(left);
+        }
+
+        if (right->has_empty == 0) {
+            tail->next = right;
+            tail = right;
+            //add_to_clear_list(to_clear_head, to_clear_tail, right);
+        } else {
+            free_split_search_node(right);
+        }
+
+        if ( center->has_empty == 0) {
+            /*
+            if (center->S_dim.start < center->S_dim.end) {
+                tail->next = center;
+                tail = center;
+            } else {
+            */
+            struct split_search_node_list *next_leaf;
+            next_leaf = (struct split_search_node_list *)
+                    malloc (sizeof(struct split_search_node_list));
+            next_leaf->node = center;
+            next_leaf->next = NULL;
+
+            if ((*leaf_head) == NULL) {
+                (*leaf_head) = next_leaf;
+                (*leaf_tail) = *leaf_head;
+            } else {
+                (*leaf_tail)->next = next_leaf;
+                (*leaf_tail) = next_leaf;
+            }
+            //}
+        } else {
+            free_split_search_node(center);
+        }
+
+        struct split_search_node *next = curr->next;
+        free_split_search_node(curr);
+        curr = next;
+    }
 }
 //}}}
 

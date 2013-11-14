@@ -218,6 +218,10 @@ void split_o(struct interval **S,
              int num_sets,
              struct int_list_list **R);
 
+void split_sweep(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R);
 
 void psplit(struct interval **S,
            int *set_sizes,
@@ -296,6 +300,21 @@ void split_sets_o (struct interval **S,
                  struct split_search_node_list **leaf_head,
                  struct split_search_node_list **leaf_tail,
                  int num_sets);
+
+void l1_split_sets_o (struct interval **S,
+                 int *set_sizes,
+                 struct split_search_node_list **to_clear_head,
+                 struct split_search_node_list **to_clear_tail,
+                 struct split_search_node_list **leaf_head,
+                 struct split_search_node_list **leaf_tail,
+                 int num_sets);
+
+void sweep_subset(struct interval **S,
+                  int num_sets,
+                  struct pair *s_dim,
+                  struct int_list_list **R_head,
+                  struct int_list_list **R_tail,
+                  int *num_R);
 
 
 int build_split_nway(struct split_search_node_list *leaf_head,
