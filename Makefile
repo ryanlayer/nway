@@ -22,6 +22,8 @@ EXECS=nway \
 all: $(EXECS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS)
+	[ -d $(OBJ_DIR) ] || mkdir -p $(OBJ_DIR)
+	[ -d $(BIN_DIR) ] || mkdir -p $(BIN_DIR)
 	$(CC) -g -c -o $@ $< $(CFLAGS) $(DFLAGS)
 
 little_split: little_split.o $(OBJ)
@@ -42,6 +44,9 @@ nway: nway_main.o $(OBJ)
 split: $(OBJ_DIR)/split.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
+split_o: $(OBJ_DIR)/split_o.o $(OBJ)
+	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
+
 psplit: psplit.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
@@ -52,4 +57,4 @@ gen_set: $(OBJ_DIR)/gen_set.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 clean:
-	rm -f obj/* bin/*
+	rm -rf obj bin

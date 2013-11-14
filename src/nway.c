@@ -399,6 +399,109 @@ void nway_step(int num_sets,
 //}}}
 
 //{{{ void split_search(struct split_search_node *query,
+void split_search_o(struct split_search_node *query,
+                  struct split_search_node *left,
+                  struct split_search_node *center,
+                  struct split_search_node *right)
+{
+
+    // s_dim[0] corresponds to S_dim.start
+    struct interval *a = query->S[query->S_dim.start];
+    struct pair a_dim;
+    //a_dim = query->s_dim[0];
+    a_dim = query->s_dim[query->S_dim.start];
+    int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
+    struct interval root = a[a_mid];
+
+    //int num_sets = query->S_dim.end - query->S_dim.start + 1;
+    int num_sets = query->S_dim.end + 1;
+
+    /* left and right have the same parent as the query and consider the
+     * same range in S, but the subsets of each S[i] (values in s_dim)
+     * will be different
+     */
+    left->S = query->S;
+    left->S_dim = query->S_dim;
+    //left->parent = query->parent;
+    left->s_dim = (struct pair *) malloc (num_sets*sizeof(struct pair));
+    memcpy(left->s_dim, query->s_dim, num_sets*sizeof(struct pair));
+    //left->s_dim[0].start = a_dim.start;
+    //left->s_dim[0].end = a_mid - 1;
+    left->s_dim[query->S_dim.start].start = a_dim.start;
+    left->s_dim[query->S_dim.start].end = a_mid - 1;
+
+    //left->has_empty = left->s_dim[0].start > left->s_dim[0].end;
+    left->has_empty = left->s_dim[query->S_dim.start].start > 
+                      left->s_dim[query->S_dim.start].end;
+
+    right->S = query->S;
+    right->S_dim = query->S_dim;
+    right->s_dim = (struct pair *) malloc (num_sets*sizeof(struct pair));
+    memcpy(right->s_dim, query->s_dim, num_sets*sizeof(struct pair));
+    //right->parent = query->parent;
+    //right->s_dim[0].start = a_mid + 1;
+    //right->s_dim[0].end = a_dim.end;
+    right->s_dim[query->S_dim.start].start = a_mid + 1;
+    right->s_dim[query->S_dim.start].end = a_dim.end;
+
+    //right->has_empty = right->s_dim[0].start > right->s_dim[0].end;
+    right->has_empty = right->s_dim[query->S_dim.start].start > 
+                       right->s_dim[query->S_dim.start].end;
+
+    center->S = query->S;
+    center->S_dim.start = query->S_dim.start + 1;
+    center->S_dim.end = query->S_dim.end;
+    //center->s_dim = (struct pair *) malloc 
+            //((num_sets-1)*sizeof(struct pair));
+    //center->s_dim = (struct pair *)malloc((num_sets-1)*sizeof(struct pair));
+    center->s_dim = (struct pair *)malloc((num_sets)*sizeof(struct pair));
+    memcpy(center->s_dim, query->s_dim, num_sets*sizeof(struct pair));
+    center->s_dim[query->S_dim.start].start = a_mid;
+    center->s_dim[query->S_dim.start].end = a_mid;
+    //center->parent = query;
+
+    int i;
+    for (i = query->S_dim.start + 1; i <= query->S_dim.end; ++i) {
+    //for (i = 1; i < query->S_dim.end - query->S_dim.start + 1; ++i) {
+        //struct interval *s = query->S[i + query->S_dim.start];
+        struct interval *s = query->S[i];
+        struct pair s_dim = query->s_dim[i];
+
+        struct pair s_center;
+        int center_is_empty = 0;
+        struct pair s_left;
+        int left_is_empty = 0;
+        struct pair s_right;
+        int right_is_empty = 0;
+
+        get_left_center_right(a,
+                              a_mid,
+                              a_dim, 
+                              s, 
+                              s_dim, 
+                              &s_center, 
+                              &center_is_empty, 
+                              &s_left, 
+                              &left_is_empty, 
+                              &s_right, 
+                              &right_is_empty);
+
+        left->s_dim[i].start = s_left.start;
+        left->s_dim[i].end = s_left.end;
+        left->has_empty += left_is_empty;
+
+        right->s_dim[i].start = s_right.start;
+        right->s_dim[i].end = s_right.end;
+        right->has_empty += right_is_empty;
+
+        center->s_dim[i].start = s_center.start;
+        center->s_dim[i].end = s_center.end;
+        center->has_empty += center_is_empty;
+    }
+}
+//}}}
+
+//{{{ void split_search(struct split_search_node *query,
 void split_search(struct split_search_node *query,
                   struct split_search_node *left,
                   struct split_search_node *center,
@@ -1207,6 +1310,85 @@ void sweep(struct interval **S,
 }
 //}}}
 
+//{{{ void split_o(struct interval **S,
+void split_o(struct interval **S,
+           int *set_sizes,
+           int num_sets,
+           struct int_list_list **R)
+{
+    struct split_search_node_list *leaf_head, *leaf_tail;
+    struct split_search_node_list *to_clear_head, *to_clear_tail;
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    split_sets_o(S,
+               set_sizes,
+               &to_clear_head,
+               &to_clear_tail,
+               &leaf_head,
+               &leaf_tail,
+               num_sets);
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
+
+    struct int_list_list *R_head;
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
+    //int count = build_split_nway(leaf_head, &R_head, num_sets);
+    int count = build_split_nway_o(leaf_head, &R_head, num_sets);
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int build_split_nway_time = report();
+#endif
+
+    // free up space
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+#if 0
+    struct split_search_node_list *curr_clear = to_clear_head;
+    while (curr_clear != NULL) {
+        struct split_search_node_list *next_clear = curr_clear->next;
+        free_split_search_node(curr_clear->node);
+        free(curr_clear);
+        curr_clear = next_clear;
+    }
+#endif
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int free_time = report();
+#endif
+    
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   build_split_nway_time +
+                                   free_time;
+    printf("split:%lu\tbuild:%lu\tfree:%lu\ttotal:%lu\t"
+           "%f\t%f\t%f\n", split_sets_time,
+                           build_split_nway_time,
+                           free_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)build_split_nway_time) / ((double)total_time)),
+                   ( ((double)free_time) / ((double)total_time)));
+    
+#endif
+
+
+    *R = R_head;
+
+}
+//}}}
+
 //{{{ void split(struct interval **S,
 void split(struct interval **S,
            int *set_sizes,
@@ -1280,6 +1462,124 @@ void split(struct interval **S,
 
     *R = R_head;
 
+}
+//}}}
+
+//{{{void split_sets (struct interval **S,
+void split_sets_o (struct interval **S,
+                 int *set_sizes,
+                 struct split_search_node_list **to_clear_head,
+                 struct split_search_node_list **to_clear_tail,
+                 struct split_search_node_list **leaf_head,
+                 struct split_search_node_list **leaf_tail,
+                 int num_sets)
+{
+    //*to_clear_head = NULL;
+    //*to_clear_tail = NULL;
+
+    struct split_search_node *root_node = 
+        (struct split_search_node *) malloc (
+        sizeof(struct split_search_node));
+
+    //add_to_clear_list(to_clear_head, to_clear_tail, root_node);
+
+    //root_node->parent = NULL;
+    root_node->S = S;
+    root_node->S_dim.start = 0;
+    root_node->S_dim.end = num_sets - 1;
+    root_node->s_dim = (struct pair *) 
+        malloc (num_sets * sizeof(struct pair));
+
+    int i;
+    for (i = 0; i < num_sets; ++i) {
+        root_node->s_dim[i].start = 0;
+        root_node->s_dim[i].end = set_sizes[i] - 1;
+    }
+
+    root_node->has_empty = 0;
+    root_node->next = NULL;
+
+    struct split_search_node *head, *tail;
+    head = root_node;
+    tail = root_node;
+    
+    *leaf_head = NULL;
+
+    struct split_search_node *curr = head;
+    while (curr != NULL) {
+        struct split_search_node *left = 
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        left->next = NULL;
+        left->has_empty = 0;
+
+        struct split_search_node *center =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        center->next = NULL;
+        center->has_empty = 0;
+
+        struct split_search_node *right =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        right->next = NULL;
+        right->has_empty = 0;
+
+        split_search_o(curr, left, center, right);
+
+        /* 
+         * For any of the splits that have all non-zero subs sets,
+         * add the split onto the queue to be re-split
+         */
+        if (left->has_empty == 0) {
+            tail->next = left;
+            tail = left;
+            //add_to_clear_list(to_clear_head, to_clear_tail, left);
+        } else {
+            free_split_search_node(left);
+        }
+
+        if (right->has_empty == 0) {
+            tail->next = right;
+            tail = right;
+            //add_to_clear_list(to_clear_head, to_clear_tail, right);
+        } else {
+            free_split_search_node(right);
+        }
+
+        if ( center->has_empty == 0) {
+            /* 
+             * Do not re-split the center if the next level is the last level
+             * If the next level is the last level, add center onto the list of
+             * leaf nodes
+             */
+            //add_to_clear_list(to_clear_head, to_clear_tail, center);
+            if (center->S_dim.start < center->S_dim.end) {
+                tail->next = center;
+                tail = center;
+            } else {
+                struct split_search_node_list *next_leaf;
+                next_leaf = (struct split_search_node_list *)
+                        malloc (sizeof(struct split_search_node_list));
+                next_leaf->node = center;
+                next_leaf->next = NULL;
+
+                if ((*leaf_head) == NULL) {
+                    (*leaf_head) = next_leaf;
+                    (*leaf_tail) = *leaf_head;
+                } else {
+                    (*leaf_tail)->next = next_leaf;
+                    (*leaf_tail) = next_leaf;
+                }
+            }
+        } else {
+            free_split_search_node(center);
+        }
+
+        struct split_search_node *next = curr->next;
+        free_split_search_node(curr);
+        curr = next;
+    }
 }
 //}}}
 
@@ -1645,6 +1945,69 @@ void psplit_sets (struct interval **S,
              (num_added == 0) )
             to_stop = 1;
     }
+}
+//}}}
+
+//{{{int build_split_nway_o(struct split_search_node_list *leaf_head,
+int build_split_nway_o(struct split_search_node_list *leaf_head,
+                     struct int_list_list **R_head,
+                     int num_sets)
+{
+    struct split_search_node_list *curr_leaf = leaf_head;
+
+    struct int_list_list *R_tail;
+    *R_head = NULL;
+    int count = 0;
+    while (curr_leaf != NULL) {
+        struct int_list_list *new_nway = (struct int_list_list *)
+            malloc (sizeof (struct int_list_list));
+        new_nway->size = num_sets;
+        new_nway->next = NULL;
+        new_nway->list = (int *)malloc(num_sets * sizeof(int));
+
+        int i;
+        for (i = 0; i < num_sets; ++i) {
+            new_nway->list[i] = curr_leaf->node->s_dim[i].start; 
+        }
+
+        if (*R_head == NULL) {
+            (*R_head) = new_nway;
+            R_tail = new_nway;
+        } else {
+            R_tail->next = new_nway;
+            R_tail = new_nway;
+        }
+
+        // it is possible that the last set has more than one item in it
+        // if so make a copy up new_nway and add it to R_tail
+        for (i = curr_leaf->node->s_dim[num_sets - 1].start + 1; 
+             i <= curr_leaf->node->s_dim[num_sets - 1].end; 
+             ++i) {
+
+            struct int_list_list *nway_cpy = (struct int_list_list *)
+                malloc (sizeof (struct int_list_list));
+            nway_cpy->size = num_sets;
+            nway_cpy->next = NULL;
+            nway_cpy->list = (int *)malloc(num_sets * sizeof(int));
+            memcpy(nway_cpy->list, new_nway->list, num_sets * sizeof(int));
+            nway_cpy->list[num_sets - 1] = i;
+
+            if (*R_head == NULL) {
+                (*R_head) = nway_cpy;
+                R_tail = nway_cpy;
+            } else {
+                R_tail->next = nway_cpy;
+                R_tail = nway_cpy;
+            }
+        }
+        
+        struct split_search_node_list *next = curr_leaf->next;
+        free(curr_leaf);
+        curr_leaf = next;
+        count += 1;
+    }
+
+    return count;
 }
 //}}}
 
@@ -2296,7 +2659,7 @@ int parse_args(int argc,
         fprintf(stderr, "\n");
 
         usage(argv[0]);
-        return(1);
+        exit(1);
     }
 
     return(0);

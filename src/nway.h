@@ -182,6 +182,11 @@ void split_search(struct split_search_node *query,
                   struct split_search_node *center,
                   struct split_search_node *right);
 
+void split_search_o(struct split_search_node *query,
+                  struct split_search_node *left,
+                  struct split_search_node *center,
+                  struct split_search_node *right);
+
 void print_slice(int id,
                  struct split_search_node *slice);
 
@@ -207,6 +212,12 @@ void split(struct interval **S,
            int *set_sizes,
            int num_sets,
            struct int_list_list **R);
+
+void split_o(struct interval **S,
+             int *set_sizes,
+             int num_sets,
+             struct int_list_list **R);
+
 
 void psplit(struct interval **S,
            int *set_sizes,
@@ -278,9 +289,22 @@ void split_sets (struct interval **S,
                  struct split_search_node_list **leaf_tail,
                  int num_sets);
 
+void split_sets_o (struct interval **S,
+                 int *set_sizes,
+                 struct split_search_node_list **to_clear_head,
+                 struct split_search_node_list **to_clear_tail,
+                 struct split_search_node_list **leaf_head,
+                 struct split_search_node_list **leaf_tail,
+                 int num_sets);
+
+
 int build_split_nway(struct split_search_node_list *leaf_head,
                      struct int_list_list **R_head,
                      int num_sets);
+
+int build_split_nway_o(struct split_search_node_list *leaf_head,
+                       struct int_list_list **R_head,
+                       int num_sets);
 
 /*
 void one_split(struct split_search_node **curr,
