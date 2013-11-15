@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X,Y) ((X) < (Y) ? (X) : (Y))
 
 //{{{ int compare_interval_by_start (const void *a, const void *b)
 int compare_int (const void *a, const void *b)
@@ -418,7 +419,7 @@ void get_center_split(struct interval **S,
         struct interval *s = S[i];
         struct pair dim;
         dim.start = 0;
-        dim.end = set_sizes[i];
+        dim.end = set_sizes[i] - 1;
 
         get_center(root, s, dim, &centers[i], &center_is_empty);
         *is_empty = *is_empty + center_is_empty;
@@ -655,8 +656,6 @@ void get_center(struct interval root,
     // if s_center.start > s_center.end, then the intersection is empty
     if (s_center->start > s_center->end)
         *center_is_empty = 1;
-
-    //printf("~%d\n", *center_is_empty);
 }
 //}}} 
 
@@ -1751,7 +1750,7 @@ void split_sweep(struct interval **S,
 }
 //}}}
 
-//{{{ void split_sweep(struct interval **S,
+//{{{ void split_centers(struct interval **S,
 void split_centers(struct interval **S,
                  int *set_sizes,
                  int num_sets,
@@ -1810,7 +1809,6 @@ void split_centers(struct interval **S,
                     R_tail = curr_tail;
                 }
             }
-
         }
     }
 
