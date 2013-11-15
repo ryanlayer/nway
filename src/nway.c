@@ -9,6 +9,9 @@
 #include "threadpool.h"
 #include <pthread.h>
 #include <sys/types.h>
+#include <assert.h>
+
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 //{{{ int compare_interval_by_start (const void *a, const void *b)
 int compare_int (const void *a, const void *b)
@@ -1832,6 +1835,145 @@ void split_centers(struct interval **S,
 }
 //}}}
 
+//{{{ void psplit_sweep(struct interval **S,
+void psplit_centers(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R)
+{
+    // alloc a long array of pairs to hold all of the center slices
+    // for each element in the first set
+    struct pair *centers = (struct pair*)
+            malloc(num_sets*set_sizes[0]*sizeof(struct split_search_node));
+    int *empties = (int *) malloc(set_sizes[0]*sizeof(int));
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
+    pl1_split_sets_centers (S,
+                           set_sizes,
+                           num_sets,
+                           centers,
+                           empties);
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    int i;
+    struct int_list_list *R_head=NULL, *R_tail=NULL;
+    for(i = 0; i < set_sizes[0]; ++i) {
+        if (empties[i] == 0) {
+            /*
+            int j;
+            for(j = 0; j < num_sets; ++j) {
+                printf("%d %d\t", centers[j+i*num_sets].start,
+                                  centers[j+i*num_sets].end);
+            }
+            printf("\n");
+            */
+            int num_R;
+            struct int_list_list *curr_head, *curr_tail;
+            sweep_subset(S,
+                         num_sets,
+                         &centers[i*num_sets],
+                         &curr_head,
+                         &curr_tail,
+                         &num_R);
+
+            if (num_R > 0) {
+                if (R_head == NULL) {
+                    R_head = curr_head;
+                    R_tail = curr_tail;
+                } else {
+                    R_tail->next = curr_head;
+                    R_tail = curr_tail;
+                }
+            }
+
+        }
+    }
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   sweep_sets_time;
+    printf("split:%lu\tsweep:%lu\ttotal:%lu\t"
+           "%f\t%f\n", split_sets_time,
+                           sweep_sets_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)sweep_sets_time) / ((double)total_time)));
+    
+#endif
+
+    *R = R_head;
+}
+//}}}
+
+//{{{ void pl1_split_sets_centers (struct interval **S,
+void pl1_split_sets_centers (struct interval **S,
+                            int *set_sizes,
+                            int num_sets,
+                            struct pair *centers,
+                            int *empties)
+{
+
+    int num_threads = 1;
+    pthread_t threads[num_threads];
+    struct get_center_split_args thread_args[num_threads];
+    int step_size = (set_sizes[0] + num_threads - 1) / num_threads;
+    int i, rc;
+
+    for (i = 0; i < num_threads; ++i) {
+        thread_args[i].S = S;
+        thread_args[i].num_sets = num_sets;
+        thread_args[i].set_sizes = set_sizes;
+        thread_args[i].centers = centers;
+        thread_args[i].empties = empties;
+        thread_args[i].start = i*step_size;
+        thread_args[i].end = MIN(i*step_size + step_size, set_sizes[0]);
+
+        rc = pthread_create(&threads[i],
+                            NULL,
+                            run_get_center_split,
+                            (void *) &thread_args[i]);
+
+        assert( 0 == rc);
+    }
+
+    for (i = 0; i < num_threads; ++i) {
+        rc = pthread_join(threads[i], NULL);
+        assert( 0 == rc);
+    }
+}
+//}}}
+
+//{{{void run_get_center_split(void *arg)
+void *run_get_center_split(void *arg)
+{
+    struct get_center_split_args *p = ((struct get_center_split_args *) arg);
+
+    int i;
+    for (i = p->start; i < p->end; ++i) {
+        get_center_split(p->S,
+                         p->num_sets,
+                         p->set_sizes,
+                         p->S[0][i],
+                         &(p->centers[i*p->num_sets]),
+                         &(p->empties[i]));
+    }
+}
+//}}}
+
 //{{{ void l1_split_sets_centers (struct interval **S,
 void l1_split_sets_centers (struct interval **S,
                             int *set_sizes,
@@ -1855,7 +1997,7 @@ void l1_split_sets_centers (struct interval **S,
 }
 //}}}
 
-//{{{void split_sets (struct interval **S,
+//{{{void l1_split_sets_o (struct interval **S,
 void l1_split_sets_o (struct interval **S,
                       int *set_sizes,
                       struct split_search_node_list **to_clear_head,
@@ -1966,7 +2108,7 @@ void l1_split_sets_o (struct interval **S,
 }
 //}}}
 
-//{{{void split_sets (struct interval **S,
+//{{{void split_sets_o (struct interval **S,
 void split_sets_o (struct interval **S,
                  int *set_sizes,
                  struct split_search_node_list **to_clear_head,

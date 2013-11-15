@@ -6,6 +6,15 @@
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 #define max(X, Y)  ((X) > (Y) ? (X) : (Y))
 
+struct get_center_split_args
+{
+    struct interval **S;
+    int num_sets, start, end;
+    int *set_sizes;
+    struct pair *centers;
+    int *empties;
+};
+
 struct one_split_args
 {
     struct split_search_node *curr;
@@ -314,6 +323,14 @@ void l1_split_sets_centers (struct interval **S,
                             int num_sets,
                             struct pair *centers,
                             int *empties);
+
+void pl1_split_sets_centers (struct interval **S,
+                            int *set_sizes,
+                            int num_sets,
+                            struct pair *centers,
+                            int *empties);
+
+void *run_get_center_split(void *arg);
 
 void get_center_split(struct interval **S,
                       int num_sets,

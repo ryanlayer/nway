@@ -7,7 +7,7 @@ do
     OUT=""
     for APP in $APPS
     do
-        R=`$APP -n $N -i 10000 -l 10 -r 1000000 -I 1000| \
+        R=`$APP -n $N -i 10000 -l 10 -r 1000000 -I 100| \
             awk -v f=$file '{
                 OFS="\t";
                 split($0,a,"\t");
