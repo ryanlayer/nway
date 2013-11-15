@@ -324,11 +324,18 @@ void l1_split_sets_centers (struct interval **S,
                             struct pair *centers,
                             int *empties);
 
+void psplit_centers(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R,
+                 int num_threads);
+
 void pl1_split_sets_centers (struct interval **S,
                             int *set_sizes,
                             int num_sets,
                             struct pair *centers,
-                            int *empties);
+                            int *empties,
+                            int num_threads);
 
 void *run_get_center_split(void *arg);
 

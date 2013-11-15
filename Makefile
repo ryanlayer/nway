@@ -5,7 +5,7 @@ BIN_DIR=bin
 #DFLAGS=-D DEBUGITTER
 DFLAGS=-D IN_TIME_SPLIT
 #CFLAGS=-I. -lpthread -g -pg
-CFLAGS=-O3 -lpthread
+CFLAGS=-O3
 DEPS = 
 OBJ = $(OBJ_DIR)/nway.o \
 	$(OBJ_DIR)/pq.o \
@@ -15,7 +15,8 @@ EXECS=split \
 	split_o \
 	split_sweep \
 	sweep \
-	split_centers
+	split_centers \
+	psplit_centers
 
 all: $(EXECS)
 
