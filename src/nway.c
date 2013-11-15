@@ -1863,18 +1863,90 @@ void psplit_centers(struct interval **S,
 #ifdef IN_TIME_SPLIT
     start();
 #endif
+    psweep_centers(S, num_sets, set_sizes, centers, empties, R, num_threads);
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   sweep_sets_time;
+    printf("split:%lu\tsweep:%lu\ttotal:%lu\t"
+           "%f\t%f\n", split_sets_time,
+                           sweep_sets_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)sweep_sets_time) / ((double)total_time)));
+    
+#endif
+
+}
+//}}}
+
+//{{{void psweep_centers(struct interval **S,
+void psweep_centers(struct interval **S,
+                    int num_sets,
+                    int *set_sizes, 
+                    struct pair *centers,
+                    int *empties,
+                    struct int_list_list **R,
+                    int num_threads)
+{
+    pthread_t threads[num_threads];
+    struct sweep_subsets_args thread_args[num_threads];
+    int step_size = (set_sizes[0] + num_threads - 1) / num_threads;
+    int i, rc;
+
+    for (i = 0; i < num_threads; ++i) {
+        thread_args[i].S = S;
+        thread_args[i].num_sets = num_sets;
+        thread_args[i].centers = centers;
+        thread_args[i].empties = empties;
+        thread_args[i].start = i*step_size;
+        thread_args[i].end = MIN(i*step_size + step_size, set_sizes[0]);
+        thread_args[i].R_head = NULL;
+        thread_args[i].R_tail = NULL;
+
+        //printf("%d %d %d\n", i, thread_args[i].start, thread_args[i].end);
+
+        rc = pthread_create(&threads[i],
+                            NULL,
+                            run_sweep_center,
+                            (void *) &thread_args[i]);
+
+        assert( 0 == rc);
+    }
+
+    for (i = 0; i < num_threads; ++i) {
+        rc = pthread_join(threads[i], NULL);
+        assert( 0 == rc);
+    }
+
+    struct int_list_list *R_head=NULL, *R_tail=NULL;
+
+    for (i = 0; i < num_threads; ++i) {
+        if (thread_args[i].R_head != NULL) {
+            if (R_head == NULL) {
+                R_head = thread_args[i].R_head;
+                R_tail = thread_args[i].R_tail;
+            } else {
+                R_tail->next = thread_args[i].R_head;
+                R_tail = thread_args[i].R_tail;
+            }
+        }
+    }
+
+    *R = R_head;
+
+    // TODO HERE!
+    /*
     int i;
     struct int_list_list *R_head=NULL, *R_tail=NULL;
+
     for(i = 0; i < set_sizes[0]; ++i) {
         if (empties[i] == 0) {
-            /*
-            int j;
-            for(j = 0; j < num_sets; ++j) {
-                printf("%d %d\t", centers[j+i*num_sets].start,
-                                  centers[j+i*num_sets].end);
-            }
-            printf("\n");
-            */
             int num_R;
             struct int_list_list *curr_head, *curr_tail;
             sweep_subset(S,
@@ -1897,26 +1969,42 @@ void psplit_centers(struct interval **S,
         }
     }
 
-#ifdef IN_TIME_SPLIT
-    stop();
-    unsigned long int sweep_sets_time = report();
-#endif
-
-#ifdef IN_TIME_SPLIT
-    unsigned long int total_time = split_sets_time + 
-                                   sweep_sets_time;
-    printf("split:%lu\tsweep:%lu\ttotal:%lu\t"
-           "%f\t%f\n", split_sets_time,
-                           sweep_sets_time,
-                           total_time,
-                   ( ((double)split_sets_time) / ((double)total_time)),
-                   ( ((double)sweep_sets_time) / ((double)total_time)));
-    
-#endif
-
     *R = R_head;
+    */
 }
 //}}}
+
+void *run_sweep_center(void *arg)
+{
+    struct sweep_subsets_args *p = ((struct sweep_subsets_args *) arg);
+
+    p->R_head = NULL;
+    p->R_tail = NULL;
+
+    int i;
+    for (i = p->start; i < p->end; ++i) {
+        if (p->empties[i] == 0) {
+            int num_R;
+            struct int_list_list *curr_head, *curr_tail;
+            sweep_subset(p->S,
+                         p->num_sets,
+                         &(p->centers[i*p->num_sets]),
+                         &curr_head,
+                         &curr_tail,
+                         &num_R);
+            if (num_R > 0) {
+                if (p->R_head == NULL) {
+                    p->R_head = curr_head;
+                    p->R_tail = curr_tail;
+                } else {
+                    p->R_tail->next = curr_head;
+                    p->R_tail = curr_tail;
+                }
+            }
+        }
+    }
+}
+
 
 //{{{ void pl1_split_sets_centers (struct interval **S,
 void pl1_split_sets_centers (struct interval **S,

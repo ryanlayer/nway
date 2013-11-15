@@ -15,6 +15,15 @@ struct get_center_split_args
     int *empties;
 };
 
+struct sweep_subsets_args
+{
+    struct interval **S;
+    int num_sets, start, end;
+    struct pair *centers;
+    int *empties;
+    struct int_list_list *R_head,*R_tail;
+};
+
 struct one_split_args
 {
     struct split_search_node *curr;
@@ -373,17 +382,6 @@ int build_split_nway_o(struct split_search_node_list *leaf_head,
                        struct int_list_list **R_head,
                        int num_sets);
 
-/*
-void one_split(struct split_search_node **curr,
-               struct split_search_node **tail,
-               struct split_search_node_list **to_clear_head,
-               struct split_search_node_list **to_clear_tail,
-               struct split_search_node_list **leaf_head,
-               struct split_search_node_list **leaf_tail,
-               pthread_mutex_t *clear_mutex,
-               pthread_mutex_t *split_mutex,
-               pthread_mutex_t *leaf_mutex);
-*/
 void one_split(void *ptr);
 
 void TS_add_to_split_search_node_list(
@@ -395,5 +393,15 @@ void TS_add_to_split_search_node_list(
 void TS_add_split_search_node(struct split_search_node **tail,
                               struct split_search_node *new_node,
                               pthread_mutex_t *mutex);
+
+void psweep_centers(struct interval **S,
+                    int num_sets,
+                    int *set_sizes, 
+                    struct pair *centers,
+                    int *empties,
+                    struct int_list_list **R,
+                    int num_threads);
+
+void *run_sweep_center(void *arg);
 #endif
 
