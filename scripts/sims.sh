@@ -2,12 +2,12 @@
 
 APPS=`ls ~/src/nway/bin/*`
 
-for N in $(seq 10 5 50)
+for N in $(seq 5 5 30)
 do
     OUT=""
     for APP in $APPS
     do
-        R=`$APP -n $N -i 10000 -l 10 -r 1000000 -I 100| \
+        R=`$APP -n $N -i 10000 -l 10 -r 1000000 -I 1000 -t 4| \
             awk -v f=$file '{
                 OFS="\t";
                 split($0,a,"\t");

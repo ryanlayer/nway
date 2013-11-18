@@ -16,7 +16,8 @@ EXECS=split \
 	split_sweep \
 	sweep \
 	split_centers \
-	psplit_centers
+	psplit_centers \
+	gen_set
 
 all: $(EXECS)
 
@@ -62,6 +63,9 @@ set_test: set_test.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
 gen_set: $(OBJ_DIR)/gen_set.o $(OBJ)
+	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
+
+get_l1: $(OBJ_DIR)/get_l1.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 clean:
