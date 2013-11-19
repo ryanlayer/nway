@@ -1750,6 +1750,206 @@ void split_sweep(struct interval **S,
 }
 //}}}
 
+//{{{ void split_psweep(struct interval **S,
+void split_psweep(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R,
+                 int num_threads,
+                 int step_size)
+{
+    struct split_search_node_list *leaf_head, *leaf_tail;
+    struct split_search_node_list *to_clear_head, *to_clear_tail;
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    l1_split_sets_o(S,
+                    set_sizes,
+                    &to_clear_head,
+                    &to_clear_tail,
+                    &leaf_head,
+                    &leaf_tail,
+                    num_sets);
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
+    psweep_subset(S,
+                  num_sets,
+                  set_sizes,
+                  leaf_head,
+                  R,
+                  num_threads,
+                  step_size);
+#if 0
+    struct split_search_node_list *curr = leaf_head;
+
+    struct int_list_list *R_head=NULL, *R_tail=NULL;
+    while (curr != NULL) {
+        struct split_search_node *node = curr->node;
+        struct int_list_list *curr_head, *curr_tail;
+
+        int num_R;
+        sweep_subset(S, num_sets, node->s_dim, &curr_head, &curr_tail, &num_R);
+
+        if (num_R > 0) {
+            if (R_head == NULL) {
+                R_head = curr_head;
+                R_tail = curr_tail;
+            } else {
+                R_tail->next = curr_head;
+                R_tail = curr_tail;
+            }
+        }
+
+        curr = curr->next;
+    }
+#endif
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   sweep_sets_time;
+    printf("split:%lu\tsweep:%lu\ttotal:%lu\t"
+           "%f\t%f\n", split_sets_time,
+                           sweep_sets_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)sweep_sets_time) / ((double)total_time)));
+    
+#endif
+
+}
+//}}}
+
+//{{{void psweep_centers(struct interval **S,
+void psweep_subset(struct interval **S,
+                   int num_sets,
+                   int *set_sizes, 
+                   struct split_search_node_list *subset_head,
+                   struct int_list_list **R,
+                   int num_threads,
+                   int step_size)
+{
+    pthread_t threads[num_threads];
+    struct run_sweep_subset_args thread_args[num_threads];
+    int i, rc;
+
+    for (i = 0; i < num_threads; ++i) {
+        thread_args[i].S = S;
+        thread_args[i].num_sets = num_sets;
+        thread_args[i].step_size = step_size;
+        thread_args[i].subset_head = subset_head;
+        thread_args[i].num_threads = num_threads;
+        thread_args[i].id = i;
+        thread_args[i].R_head = NULL;
+        thread_args[i].R_tail = NULL;
+
+        //printf("%d %d %d\n", i, thread_args[i].start, thread_args[i].end);
+
+        rc = pthread_create(&threads[i],
+                            NULL,
+                            run_sweep_subset,
+                            (void *) &thread_args[i]);
+
+        assert( 0 == rc);
+    }
+
+    for (i = 0; i < num_threads; ++i) {
+        rc = pthread_join(threads[i], NULL);
+        assert( 0 == rc);
+    }
+
+    struct int_list_list *R_head=NULL, *R_tail=NULL;
+
+    for (i = 0; i < num_threads; ++i) {
+        if (thread_args[i].R_head != NULL) {
+            if (R_head == NULL) {
+                R_head = thread_args[i].R_head;
+                R_tail = thread_args[i].R_tail;
+            } else {
+                R_tail->next = thread_args[i].R_head;
+                R_tail = thread_args[i].R_tail;
+            }
+        }
+    }
+
+    *R = R_head;
+}
+//}}}
+
+//{{{ void *run_sweep_subset(void *arg)
+void *run_sweep_subset(void *arg)
+{
+    struct run_sweep_subset_args *p = ((struct run_sweep_subset_args *) arg);
+
+    p->R_head = NULL;
+    p->R_tail = NULL;
+
+    // skip to first, id*step_size is the first node to consider
+    int node_id = 0;
+    struct split_search_node_list *curr = p->subset_head;
+    while ( (curr != NULL) && (node_id < (p->id*p->step_size)) ){
+        curr = curr->next;
+        node_id += 1;
+    }
+
+    // sweep the current regions, then move to the next
+    int num_to_sweep = p->step_size, num_to_skip, num_R;
+    while (curr != NULL) {
+
+        //sweep the current region
+        if (num_to_sweep > 0) {
+
+            struct int_list_list *curr_head, *curr_tail;
+            sweep_subset(p->S,
+                         p->num_sets,
+                         curr->node->s_dim,
+                         &curr_head,
+                         &curr_tail,
+                         &num_R);
+            if (num_R > 0) {
+                if (p->R_head == NULL) {
+                    p->R_head = curr_head;
+                    p->R_tail = curr_tail;
+                } else {
+                    p->R_tail->next = curr_head;
+                    p->R_tail = curr_tail;
+                }
+            }
+
+            num_to_sweep -= 1;
+
+        //once we reach the end of this region, need to start skipping
+        } else if (num_to_sweep == 0) {
+            // in this itteration we are skipping the current node, so we must subtract
+            // one from the total number to be skipped
+            num_to_skip = (p->num_threads - 1) * p->step_size - 1;
+            num_to_sweep = -1;
+        //keep skipping
+        } else if (num_to_skip > 1) {
+            num_to_skip -= 1;
+        //once we reach the the last item to be skipped we re-up the sweep count
+        //and start sweeping on the next node
+        } if (num_to_skip == 1) {
+            num_to_sweep = p->step_size;
+            num_to_skip = -1;
+        }
+
+        curr = curr->next;
+    }
+}
+//}}}
 //{{{ void split_centers(struct interval **S,
 void split_centers(struct interval **S,
                  int *set_sizes,
@@ -1895,7 +2095,7 @@ void psweep_centers(struct interval **S,
                     int num_threads)
 {
     pthread_t threads[num_threads];
-    struct sweep_subsets_args thread_args[num_threads];
+    struct run_sweep_center_args thread_args[num_threads];
     int step_size = (set_sizes[0] + num_threads - 1) / num_threads;
     int i, rc;
 
@@ -1939,44 +2139,13 @@ void psweep_centers(struct interval **S,
     }
 
     *R = R_head;
-
-    // TODO HERE!
-    /*
-    int i;
-    struct int_list_list *R_head=NULL, *R_tail=NULL;
-
-    for(i = 0; i < set_sizes[0]; ++i) {
-        if (empties[i] == 0) {
-            int num_R;
-            struct int_list_list *curr_head, *curr_tail;
-            sweep_subset(S,
-                         num_sets,
-                         &centers[i*num_sets],
-                         &curr_head,
-                         &curr_tail,
-                         &num_R);
-
-            if (num_R > 0) {
-                if (R_head == NULL) {
-                    R_head = curr_head;
-                    R_tail = curr_tail;
-                } else {
-                    R_tail->next = curr_head;
-                    R_tail = curr_tail;
-                }
-            }
-
-        }
-    }
-
-    *R = R_head;
-    */
 }
 //}}}
 
+//{{{ void *run_sweep_center(void *arg)
 void *run_sweep_center(void *arg)
 {
-    struct sweep_subsets_args *p = ((struct sweep_subsets_args *) arg);
+    struct run_sweep_center_args *p = ((struct run_sweep_center_args *) arg);
 
     p->R_head = NULL;
     p->R_tail = NULL;
@@ -2004,7 +2173,7 @@ void *run_sweep_center(void *arg)
         }
     }
 }
-
+//}}}
 
 //{{{ void pl1_split_sets_centers (struct interval **S,
 void pl1_split_sets_centers (struct interval **S,

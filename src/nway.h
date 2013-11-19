@@ -15,7 +15,15 @@ struct get_center_split_args
     int *empties;
 };
 
-struct sweep_subsets_args
+struct run_sweep_subset_args
+{
+    struct interval **S;
+    int num_sets, step_size, id, num_threads;
+    struct split_search_node_list *subset_head;
+    struct int_list_list *R_head,*R_tail;
+};
+
+struct run_sweep_center_args
 {
     struct interval **S;
     int num_sets, start, end;
@@ -403,5 +411,22 @@ void psweep_centers(struct interval **S,
                     int num_threads);
 
 void *run_sweep_center(void *arg);
+
+void split_psweep(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R,
+                 int num_threads,
+                 int step_size);
+
+void psweep_subset(struct interval **S,
+                   int num_sets,
+                   int *set_sizes, 
+                   struct split_search_node_list *subset_head,
+                   struct int_list_list **R,
+                   int num_threads,
+                   int step_size);
+
+void *run_sweep_subset(void *arg);
 #endif
 

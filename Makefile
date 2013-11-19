@@ -17,7 +17,8 @@ EXECS=split \
 	sweep \
 	split_centers \
 	psplit_centers \
-	gen_set
+	gen_set \
+	split_psweep
 
 all: $(EXECS)
 
@@ -48,6 +49,9 @@ split_o: $(OBJ_DIR)/split_o.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 split_sweep: $(OBJ_DIR)/split_sweep.o $(OBJ)
+	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
+
+split_psweep: $(OBJ_DIR)/split_psweep.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 split_centers: $(OBJ_DIR)/split_centers.o $(OBJ)
