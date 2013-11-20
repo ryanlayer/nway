@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     int to_print;
     int num_sets;
     int num_threads;
-    int step_size = 20;
+    int step_size = 30;
 
 
     int r = parse_args(argc,

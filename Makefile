@@ -5,7 +5,7 @@ BIN_DIR=bin
 #DFLAGS=-D DEBUGITTER
 DFLAGS=-D IN_TIME_SPLIT
 #CFLAGS=-I. -lpthread -g -pg
-CFLAGS=-O3
+CFLAGS=-O3 -lpthread
 DEPS = 
 OBJ = $(OBJ_DIR)/nway.o \
 	$(OBJ_DIR)/pq.o \
