@@ -3213,7 +3213,7 @@ void read_interval_sets(char *file_name,
                         int **set_sizes,
                         int *num_sets) 
 {
-    int MAX_LINE_SIZE=4194304;
+    int MAX_LINE_SIZE=8388608;
     char *line = (char *) malloc(MAX_LINE_SIZE * sizeof(char));
     FILE *fp;
     char *l_p;
