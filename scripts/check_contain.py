@@ -1,11 +1,25 @@
 #!/usr/bin/env python
 import sys
+import numpy as np
 
-f = open(sys.argv[1], 'r')
+from optparse import OptionParser
+
+parser = OptionParser()
+
+parser.add_option("-b",
+    "--bed_file",
+    dest="bed_file",
+    help="BED file")
+
+(options, args) = parser.parse_args()
+
+if not options.bed_file:
+    parser.error('BED file not given')
+
+f = open(options.bed_file,'r')
 
 s_id = 0
 for l in f:
-    print s_id
     A = l.rstrip().split("\t")
     last = 0
     for a in A:
@@ -16,3 +30,4 @@ for l in f:
             print last,d
         last = d
     s_id += 1
+f.close()
