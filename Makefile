@@ -2,7 +2,7 @@ CC=gcc
 SRC_DIR=src
 OBJ_DIR=obj
 BIN_DIR=bin
-#DFLAGS=-D DEBUGITTER
+DFLAGS=-D DEBUGITTER
 DFLAGS=-D IN_TIME_SPLIT
 #CFLAGS=-I. -lpthread -g -pg
 CFLAGS=-O3 -lpthread
@@ -13,6 +13,7 @@ OBJ = $(OBJ_DIR)/nway.o \
 	$(OBJ_DIR)/threadpool.o 
 EXECS=split \
 	split_o \
+	psplit_o \
 	split_sweep \
 	sweep \
 	split_centers \
@@ -46,6 +47,9 @@ split: $(OBJ_DIR)/split.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 split_o: $(OBJ_DIR)/split_o.o $(OBJ)
+	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
+
+psplit_o: $(OBJ_DIR)/psplit_o.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 split_sweep: $(OBJ_DIR)/split_sweep.o $(OBJ)

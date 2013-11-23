@@ -45,6 +45,15 @@ struct one_split_args
     pthread_mutex_t *leaf_mutex;
 };
 
+struct pone_split_o_args
+{
+    struct split_search_node **curr, **tail;
+    struct split_search_node_list *leaf_head, *leaf_tail;
+    int *work, *waiting, num_threads;
+    pthread_mutex_t *work_mutex;
+    pthread_cond_t *cond_mutex;
+};
+
 struct tag
 {
     int *set_ids;
@@ -435,5 +444,19 @@ void one_split_o(struct split_search_node *curr,
                  struct split_search_node **center,
                  struct split_search_node_list **leaf);
 
+void psplit_o(struct interval **S,
+              int *set_sizes,
+              int num_sets,
+              struct int_list_list **R,
+              int num_threads);
+
+void psplit_sets_o (struct interval **S,
+                    int *set_sizes,
+                    struct split_search_node_list **leaf_head,
+                    struct split_search_node_list **leaf_tail,
+                    int num_sets,
+                    int num_threads);
+
+void *pone_split_o(void *ptr);
 #endif
 
