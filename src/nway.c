@@ -1603,6 +1603,87 @@ void split_o(struct interval **S,
 }
 //}}}
 
+//{{{ void psplit_o(struct interval **S,
+#if 0
+void psplit_o(struct interval **S,
+              int *set_sizes,
+              int num_sets,
+              struct int_list_list **R,
+              int num_threads)
+{
+    struct split_search_node_list *leaf_head, *leaf_tail;
+    struct split_search_node_list *to_clear_head, *to_clear_tail;
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+    psplit_sets_o(S,
+                  set_sizes,
+                  &leaf_head,
+                  &leaf_tail,
+                  num_sets,
+                  num_threads);
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
+
+    struct int_list_list *R_head;
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
+    //int count = build_split_nway(leaf_head, &R_head, num_sets);
+    int count = build_split_nway_o(leaf_head, &R_head, num_sets);
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int build_split_nway_time = report();
+#endif
+
+    // free up space
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+#if 0
+    struct split_search_node_list *curr_clear = to_clear_head;
+    while (curr_clear != NULL) {
+        struct split_search_node_list *next_clear = curr_clear->next;
+        free_split_search_node(curr_clear->node);
+        free(curr_clear);
+        curr_clear = next_clear;
+    }
+#endif
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int free_time = report();
+#endif
+    
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   build_split_nway_time +
+                                   free_time;
+    printf("split:%lu\tbuild:%lu\tfree:%lu\ttotal:%lu\t"
+           "%f\t%f\t%f\n", split_sets_time,
+                           build_split_nway_time,
+                           free_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)build_split_nway_time) / ((double)total_time)),
+                   ( ((double)free_time) / ((double)total_time)));
+    
+#endif
+
+
+    *R = R_head;
+
+}
+#endif
+//}}}
+
 //{{{ void split(struct interval **S,
 void split(struct interval **S,
            int *set_sizes,
@@ -1950,6 +2031,7 @@ void *run_sweep_subset(void *arg)
     }
 }
 //}}}
+
 //{{{ void split_centers(struct interval **S,
 void split_centers(struct interval **S,
                  int *set_sizes,
@@ -2368,25 +2450,19 @@ void l1_split_sets_o (struct interval **S,
 }
 //}}}
 
-//{{{void split_sets_o (struct interval **S,
-void split_sets_o (struct interval **S,
-                 int *set_sizes,
-                 struct split_search_node_list **to_clear_head,
-                 struct split_search_node_list **to_clear_tail,
-                 struct split_search_node_list **leaf_head,
-                 struct split_search_node_list **leaf_tail,
-                 int num_sets)
+//{{{void psplit_sets_o (struct interval **S,
+#if 0
+void psplit_sets_o (struct interval **S,
+                    int *set_sizes,
+                    struct split_search_node_list **leaf_head,
+                    struct split_search_node_list **leaf_tail,
+                    int num_sets,
+                    int num_threads)
 {
-    //*to_clear_head = NULL;
-    //*to_clear_tail = NULL;
-
     struct split_search_node *root_node = 
         (struct split_search_node *) malloc (
         sizeof(struct split_search_node));
 
-    //add_to_clear_list(to_clear_head, to_clear_tail, root_node);
-
-    //root_node->parent = NULL;
     root_node->S = S;
     root_node->S_dim.start = 0;
     root_node->S_dim.end = num_sets - 1;
@@ -2400,13 +2476,179 @@ void split_sets_o (struct interval **S,
     }
 
     root_node->has_empty = 0;
-    root_node->next = NULL;
+
+    struct split_search_node *caboose = 
+        (struct split_search_node *) malloc (
+        sizeof(struct split_search_node));
+    caboose->S = NULL;
+
+    root_node->next = caboose;
 
     struct split_search_node *head, *tail;
     head = root_node;
     tail = root_node;
     
     *leaf_head = NULL;
+
+    pthread_t threads[num_threads];
+    struct one_split_o_args thread_args[num_threads];
+    int i, rc;
+
+    int waiting = 0, work = 1;
+    struct split_search_node_list *leaf_head = NULL, *leaf_tail = NULL;
+
+    for (i = 0; i < num_threads; ++i) {
+        thread_args[i].curr = &head;
+        thread_args[i].tail = &tail;
+        thread_args[i].leaf_head = &leaf_head;
+        thread_args[i].leaf_tail = &leaf_tail;
+        thread_args[i].waiting = &waiting;
+        thread_args[i].work = &work;
+
+        rc = pthreads_create(&threads[i],
+                             NULL,
+                             pone_split_o,
+                             (void *) &thread_args[i]);
+
+        assert(0 == rc);
+    }
+
+    for (i = 0; i < num_threads; ++i) {
+        rc = pthread_join(threads[i],NULL);
+        assert(0 == rc);
+    }
+#if 0
+//{{{
+    struct split_search_node *curr = head;
+    while (curr != NULL) {
+        struct split_search_node *left = 
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        left->next = NULL;
+        left->has_empty = 0;
+
+        struct split_search_node *center =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        center->next = NULL;
+        center->has_empty = 0;
+
+        struct split_search_node *right =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        right->next = NULL;
+        right->has_empty = 0;
+
+        split_search_o(curr, left, center, right);
+
+        /* 
+         * For any of the splits that have all non-zero subs sets,
+         * add the split onto the queue to be re-split
+         */
+        if (left->has_empty == 0) {
+            tail->next = left;
+            tail = left;
+            //add_to_clear_list(to_clear_head, to_clear_tail, left);
+        } else {
+            free_split_search_node(left);
+        }
+
+        if (right->has_empty == 0) {
+            tail->next = right;
+            tail = right;
+            //add_to_clear_list(to_clear_head, to_clear_tail, right);
+        } else {
+            free_split_search_node(right);
+        }
+
+        if ( center->has_empty == 0) {
+            /* 
+             * Do not re-split the center if the next level is the last level
+             * If the next level is the last level, add center onto the list of
+             * leaf nodes
+             */
+            //add_to_clear_list(to_clear_head, to_clear_tail, center);
+            if (center->S_dim.start < center->S_dim.end) {
+                tail->next = center;
+                tail = center;
+            } else {
+                struct split_search_node_list *next_leaf;
+                next_leaf = (struct split_search_node_list *)
+                        malloc (sizeof(struct split_search_node_list));
+                next_leaf->node = center;
+                next_leaf->next = NULL;
+
+                if ((*leaf_head) == NULL) {
+                    (*leaf_head) = next_leaf;
+                    (*leaf_tail) = *leaf_head;
+                } else {
+                    (*leaf_tail)->next = next_leaf;
+                    (*leaf_tail) = next_leaf;
+                }
+            }
+        } else {
+            free_split_search_node(center);
+        }
+
+        struct split_search_node *next = curr->next;
+        free_split_search_node(curr);
+        curr = next;
+    }
+//}}}
+#endif
+}
+#endif
+//}}}
+
+//{{{ void *one_split_o(void *ptr)
+#if 0
+void *one_split_o(void *ptr)
+{
+    struct one_split_args *args = (struct one_split_args *)ptr;
+        
+    //struct split_search_node *curr = args->curr;
+    //struct split_search_node **tail = args->tail;
+    //struct split_search_node_list **leaf_head = args->leaf_head;
+    //struct split_search_node_list **leaf_tail = args->leaf_tail;
+
+    while(1) {
+        pthread_mutex_lock(p->work_mutex);
+
+        while (*(args->work) == 0) {
+            // up the number waiting
+            *(p->waiting) = *(p->waiting) + 1;
+
+            // if everyone is waiting then get out
+            if (*(p->waiting) == p->num_threads) {
+                *(p->work) = -1;
+                pthread_mutex_unlock(p->work_mutex);
+                pthread_cond_signal(p->cond_mutex);
+                return;
+                }
+
+            pthread_cond_wait(p->cond_mutex, p->work_mutex);
+            *(p->waiting) = *(p->waiting) - 1;
+        }
+
+        // die if all the work is done
+        if (*(p->work) < 0) {
+            pthread_mutex_unlock(p->work_mutex);
+            pthread_cond_signal(p->cond_mutex);
+            return;
+        }
+
+        // Grab the work
+        struct split_search_node *curr = *(args->curr);
+        *(args->curr) = (*(args->curr))->next;
+        *(args->work) = *(args->work) - 1;
+
+        // Release lock
+        pthread_mutex_unlock(p->work_mutex);
+
+        // do the work
+
+    }
+
 
     struct split_search_node *curr = head;
     while (curr != NULL) {
@@ -2482,6 +2724,235 @@ void split_sets_o (struct interval **S,
         struct split_search_node *next = curr->next;
         free_split_search_node(curr);
         curr = next;
+    }
+}
+#endif
+//}}}
+
+//{{{ void one_split_o(split_search_node *curr = head;
+void one_split_o(struct split_search_node *curr,
+                 struct split_search_node **left,
+                 struct split_search_node **right,
+                 struct split_search_node **center,
+                 struct split_search_node_list **leaf)
+{
+    //struct split_search_node *left = 
+    *left = (struct split_search_node *) malloc (
+            sizeof(struct split_search_node));
+    (*left)->next = NULL;
+    (*left)->has_empty = 0;
+
+    //struct split_search_node *center =
+    *center = (struct split_search_node *) malloc (
+            sizeof(struct split_search_node));
+    (*center)->next = NULL;
+    (*center)->has_empty = 0;
+
+    //struct split_search_node *right =
+    *right = (struct split_search_node *) malloc (
+            sizeof(struct split_search_node));
+    (*right)->next = NULL;
+    (*right)->has_empty = 0;
+
+    split_search_o(curr, *left, *center, *right);
+
+    /* 
+     * For any of the splits that have all non-zero subs sets,
+     * add the split onto the queue to be re-split
+     */
+    if ((*left)->has_empty != 0) 
+        free_split_search_node(*left);
+
+    if ((*right)->has_empty != 0) 
+        free_split_search_node(*right);
+
+    if ( (*center)->has_empty == 0) {
+        /* 
+         * Do not re-split the center if the next level is the last level
+         * If the next level is the last level, add center onto the list of
+         * leaf nodes
+         */
+        /*
+        if (center->S_dim.start < center->S_dim.end) {
+            tail->next = center;
+            tail = center;
+        } else {
+        */
+        if ((*center)->S_dim.start >= (*center)->S_dim.end) {
+            //struct split_search_node_list *next_leaf;
+            *leaf = (struct split_search_node_list *)
+                    malloc (sizeof(struct split_search_node_list));
+            (*leaf)->node = *center;
+            (*leaf)->next = NULL;
+
+            /*
+            if ((*leaf_head) == NULL) {
+                (*leaf_head) = next_leaf;
+                (*leaf_tail) = *leaf_head;
+            } else {
+                (*leaf_tail)->next = next_leaf;
+                (*leaf_tail) = next_leaf;
+            }
+            */
+        }
+    } else {
+        free_split_search_node(*center);
+    }
+}
+//}}}
+
+//{{{void split_sets_o (struct interval **S,
+void split_sets_o(struct interval **S,
+                 int *set_sizes,
+                 struct split_search_node_list **to_clear_head,
+                 struct split_search_node_list **to_clear_tail,
+                 struct split_search_node_list **leaf_head,
+                 struct split_search_node_list **leaf_tail,
+                 int num_sets)
+{
+    //*to_clear_head = NULL;
+    //*to_clear_tail = NULL;
+
+    struct split_search_node *root_node = 
+        (struct split_search_node *) malloc (
+        sizeof(struct split_search_node));
+
+    //add_to_clear_list(to_clear_head, to_clear_tail, root_node);
+
+    //root_node->parent = NULL;
+    root_node->S = S;
+    root_node->S_dim.start = 0;
+    root_node->S_dim.end = num_sets - 1;
+    root_node->s_dim = (struct pair *) 
+        malloc (num_sets * sizeof(struct pair));
+
+    int i;
+    for (i = 0; i < num_sets; ++i) {
+        root_node->s_dim[i].start = 0;
+        root_node->s_dim[i].end = set_sizes[i] - 1;
+    }
+
+    root_node->has_empty = 0;
+    root_node->next = NULL;
+
+    struct split_search_node *head, *tail;
+    head = root_node;
+    tail = root_node;
+    
+    *leaf_head = NULL;
+
+    struct split_search_node *curr = head;
+    while (curr != NULL) {
+
+        struct split_search_node *left = NULL, 
+                                 *right = NULL, 
+                                 *center = NULL;
+        struct split_search_node_list *leaf = NULL;
+
+        // TODO!
+        // get one_split_o working, then move that into the parallel version
+        one_split_o(curr, &left, &right, &center, &leaf);
+
+        if (left != NULL) {
+            tail->next = left;
+            tail = left;
+        }
+
+        if (right != NULL) {
+            tail->next = right;
+            tail = right;
+        }
+
+        if (leaf != NULL) {
+
+            if ((*leaf_head) == NULL) {
+                (*leaf_head) = leaf;
+                (*leaf_tail) = *leaf_head;
+            } else {
+                (*leaf_tail)->next = leaf;
+                (*leaf_tail) = leaf;
+            }
+
+        } else if (center != NULL) {
+            tail->next = center;
+            tail = center;
+        }
+
+        struct split_search_node *next = curr->next;
+        free_split_search_node(curr);
+        curr = next;
+
+
+#if 0
+        struct split_search_node *left = 
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        left->next = NULL;
+        left->has_empty = 0;
+
+        struct split_search_node *center =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        center->next = NULL;
+        center->has_empty = 0;
+
+        struct split_search_node *right =
+                (struct split_search_node *) malloc (
+                sizeof(struct split_search_node));
+        right->next = NULL;
+        right->has_empty = 0;
+
+        split_search_o(curr, left, center, right);
+
+        /* 
+         * For any of the splits that have all non-zero subs sets,
+         * add the split onto the queue to be re-split
+         */
+        if (left->has_empty == 0) {
+            tail->next = left;
+            tail = left;
+            //add_to_clear_list(to_clear_head, to_clear_tail, left);
+        } else {
+            free_split_search_node(left);
+        }
+
+        if (right->has_empty == 0) {
+            tail->next = right;
+            tail = right;
+            //add_to_clear_list(to_clear_head, to_clear_tail, right);
+        } else {
+            free_split_search_node(right);
+        }
+
+        if ( center->has_empty == 0) {
+            /* 
+             * Do not re-split the center if the next level is the last level
+             * If the next level is the last level, add center onto the list of
+             * leaf nodes
+             */
+            //add_to_clear_list(to_clear_head, to_clear_tail, center);
+            if (center->S_dim.start < center->S_dim.end) {
+                tail->next = center;
+                tail = center;
+            } else {
+                struct split_search_node_list *next_leaf;
+                next_leaf = (struct split_search_node_list *)
+                        malloc (sizeof(struct split_search_node_list));
+                next_leaf->node = center;
+                next_leaf->next = NULL;
+
+                if ((*leaf_head) == NULL) {
+                    (*leaf_head) = next_leaf;
+                    (*leaf_tail) = *leaf_head;
+                } else {
+                    (*leaf_tail)->next = next_leaf;
+                    (*leaf_tail) = next_leaf;
+                }
+            }
+        } else {
+            free_split_search_node(center);
+        }
+#endif
     }
 }
 //}}}
@@ -3023,6 +3494,7 @@ void free_split_search_node (struct split_search_node *n)
         n->s_dim = NULL;
     }
     free(n);
+    n = NULL;
 }
 //}}}
 

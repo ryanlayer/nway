@@ -428,5 +428,12 @@ void psweep_subset(struct interval **S,
                    int step_size);
 
 void *run_sweep_subset(void *arg);
+
+void one_split_o(struct split_search_node *curr,
+                 struct split_search_node **left,
+                 struct split_search_node **right,
+                 struct split_search_node **center,
+                 struct split_search_node_list **leaf);
+
 #endif
 
