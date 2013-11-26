@@ -41,7 +41,6 @@ for file_name in options.bed_files.split(','):
     for l in f:
         a = l.rstrip().split('\t')
         offset = offsets[a[0]]
-        line.append([int(a[1])+offset,int(a[2])+offset-1])
-    l_s = sorted(line)
-    print "\t".join( \
-        [str(x[0]) + " " + str(x[1]) for x in l_s])
+        print str(int(a[1])+offset) + '\t' + str(int(a[2])+offset) + '\t' + \
+                a[0] + '\t' + a[1] + '\t' +  a[2]
+

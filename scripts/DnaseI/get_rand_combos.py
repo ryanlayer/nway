@@ -77,14 +77,16 @@ combos=['fSkin_fibro_abdomen', \
         'fIntestine_Sm', \
         'fIntestine_Lg', \
         'fMuscle_arm'] 
-F=[]
+F={}
 for file in os.listdir(options.data_dir):
     prefix = file.split('-')[0]
     if prefix in combos:
-        F.append(options.data_dir + '/' + file)
+        if not prefix in F:
+            F[prefix] = []
+        F[prefix].append(options.data_dir + '/' + file)
 
-rand_choice = random.sample(F,options.num)
-#for f in random.sample(F.keys(),options.num):
-    #rand_choice.append(random.choice(F[f]))
+rand_choice = []
+for f in random.sample(F.keys(),options.num):
+    rand_choice.append(random.choice(F[f]))
 
 os.system('cat ' + ' '.join(rand_choice) + '>' + options.out_file)

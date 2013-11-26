@@ -56,7 +56,7 @@ int main(int argc, char **argv)
         }
     }
 
-    free_int_list_list(R);
+    //free_int_list_list(R);
 
     for (i = 0; i < num_sets; i++) 
         free(S[i]);

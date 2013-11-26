@@ -2,9 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 #include "pq.h"
 #include "nway.h"
 #include "timer.h"
+
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
 int main(int argc, char **argv)
 {
@@ -47,12 +51,12 @@ int main(int argc, char **argv)
         struct int_list_list *curr = R;
         while (curr != NULL) {
             int j;
+            int min_v = INT_MAX, max_v =0;
             for (j = 0; j < curr->size; ++j) {
-                if (j != 0)
-                    printf("\t");
-                printf("%d", curr->list[j]);
+                min_v = MIN(min_v, S[j][curr->list[j]].end);
+                max_v = MAX(max_v, S[j][curr->list[j]].start);
             }
-            printf("\n");
+            printf("%d\t%d\n", max_v, min_v);
             curr = curr->next;
         }
     }

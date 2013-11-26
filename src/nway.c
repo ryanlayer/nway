@@ -280,7 +280,7 @@ void print_nway( int num_sets,
     struct int_list_list *tail = head;
 
     head->size = num_sets;
-    head->list = (int *) malloc(head->size * sizeof(int));
+    head->list = (int64_t *) malloc(head->size * sizeof(int64_t));
     head->next = NULL;
 
     // Create nways from the orders before s_i
@@ -321,8 +321,8 @@ void print_nway( int num_sets,
                             (struct int_list_list *)
                             malloc(sizeof(struct int_list_list));
                     nway_copy->size = num_sets;
-                    nway_copy->list = (int *) 
-                            malloc(head->size * sizeof(int));
+                    nway_copy->list = (int64_t *) 
+                            malloc(head->size * sizeof(int64_t));
                     nway_copy->next = NULL;
 
                     //copy elements from the current nway over
@@ -1179,7 +1179,7 @@ int get_nway_sweep_list(int num_sets,
     struct int_list_list *tail = head;
 
     head->size = num_sets;
-    head->list = (int *) malloc(head->size * sizeof(int));
+    head->list = (int64_t *) malloc(head->size * sizeof(int64_t));
     head->next = NULL;
 
     // Create nways from the orders before s_i
@@ -1219,8 +1219,8 @@ int get_nway_sweep_list(int num_sets,
                             (struct int_list_list *)
                             malloc(sizeof(struct int_list_list));
                     nway_copy->size = num_sets;
-                    nway_copy->list = (int *) 
-                            malloc(head->size * sizeof(int));
+                    nway_copy->list = (int64_t *) 
+                            malloc(head->size * sizeof(int64_t));
                     nway_copy->next = NULL;
 
                     //copy elements from the current nway over
@@ -3125,7 +3125,7 @@ int build_split_nway_o(struct split_search_node_list *leaf_head,
             malloc (sizeof (struct int_list_list));
         new_nway->size = num_sets;
         new_nway->next = NULL;
-        new_nway->list = (int *)malloc(num_sets * sizeof(int));
+        new_nway->list = (int64_t *)malloc(num_sets * sizeof(int64_t));
 
         int i;
         for (i = 0; i < num_sets; ++i) {
@@ -3150,8 +3150,8 @@ int build_split_nway_o(struct split_search_node_list *leaf_head,
                 malloc (sizeof (struct int_list_list));
             nway_cpy->size = num_sets;
             nway_cpy->next = NULL;
-            nway_cpy->list = (int *)malloc(num_sets * sizeof(int));
-            memcpy(nway_cpy->list, new_nway->list, num_sets * sizeof(int));
+            nway_cpy->list = (int64_t *)malloc(num_sets * sizeof(int64_t));
+            memcpy(nway_cpy->list, new_nway->list, num_sets * sizeof(int64_t));
             nway_cpy->list[num_sets - 1] = i;
 
             if (*R_head == NULL) {
@@ -3208,8 +3208,8 @@ int build_split_nway(struct split_search_node_list *leaf_head,
             new_nway->next = NULL;
             path[num_sets - 1] = i;
 
-            new_nway->list = (int *)malloc(num_sets * sizeof(int));
-            memcpy(new_nway->list, path ,num_sets * sizeof(int));
+            new_nway->list = (int64_t *)malloc(num_sets * sizeof(int64_t));
+            memcpy(new_nway->list, path ,num_sets * sizeof(int64_t));
 
             if (*R_head == NULL) {
                 (*R_head) = new_nway;

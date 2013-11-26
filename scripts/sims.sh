@@ -13,12 +13,12 @@ sweep"
 for APP in $APPS
 do
     echo $APP
-    for N in $(seq 5 5 30)
+    for N in $(seq 5 5 20)
     do
         o=""
         for i in $(seq 1 10)
         do
-        R=`bin/$APP -n $N -i 10000 -l 10 -r 10000000 -I 1000 -t 8 -s $i`
+        R=`bin/$APP -n $N -i 10000 -l 10 -r 10000000 -I 1000 -t 10 -s $i`
 #        R=`bin/$APP -n $N -i 10000 -l 10 -r 10000000 -I 1000 -t 4 -s 1|
 #            awk '{
 #                OFS="\t";

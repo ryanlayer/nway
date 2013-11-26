@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include "pq.h"
@@ -46,15 +47,26 @@ int main(int argc, char **argv)
         struct int_list_list *curr = R;
         while (curr != NULL) {
             int j;
+            int min_v = INT_MAX, max_v =0;
             for (j = 0; j < curr->size; ++j) {
-                if (j != 0)
+                /*
+                if (j!=0)
                     printf("\t");
-                printf("%d", curr->list[j]);
+
+                printf("%d,%d,%d", 
+                                curr->list[j],
+                                S[j][curr->list[j]].start,
+                                S[j][curr->list[j]].end);
+                */
+                min_v = min(min_v, S[j][curr->list[j]].end);
+                max_v = max(max_v, S[j][curr->list[j]].start);
             }
-            printf("\n");
+            //printf("\t%d\t%d\n", max_v, min_v);
+            printf("%d\t%d\n", max_v, min_v);
             curr = curr->next;
         }
     }
+
 
     free_int_list_list(R);
 

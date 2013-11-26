@@ -49,7 +49,7 @@ int main(int argc, char **argv)
             for (j = 0; j < curr->size; ++j) {
                 if (j != 0)
                     printf("\t");
-                printf("%d", curr->list[j]);
+                printf("%d,%d", S[j][curr->list[j]]);
             }
             printf("\n");
             curr = curr->next;

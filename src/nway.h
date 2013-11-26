@@ -1,5 +1,6 @@
 #include "threadpool.h"
 #include <pthread.h>
+#include <stdint.h>
 #ifndef __NWAY_H__
 #define __NWAY_H__
 
@@ -64,7 +65,7 @@ struct tag
 
 struct interval
 {
-    unsigned int start, end;
+    int64_t start, end;
 };
 
 struct interval_list_list
@@ -82,7 +83,7 @@ struct interval_list
 
 struct pair
 {
-    int start, end;
+    int64_t start, end;
 };
 
 struct search_q
@@ -94,7 +95,7 @@ struct search_q
 struct intersect_tree
 {
     struct intersect_tree *parent;
-    int index;
+    int64_t index;
     struct pair s_range;
     struct pair *q;	
 };
@@ -107,15 +108,15 @@ struct intersect_tree_node
 
 struct int_list
 {
-    int value;
+    int64_t value;
     struct int_list *next;
 };
 
 struct int_list_list
 {
-    int *list;
+    int64_t *list;
     struct int_list_list *next;
-    int size;
+    int64_t size;
 };
 
 struct split_search_node {
