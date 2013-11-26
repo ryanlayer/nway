@@ -10,9 +10,11 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <assert.h>
+#include <limits.h>
+#include <inttypes.h>
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-#define MAX(X,Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
 //{{{ int compare_interval_by_start (const void *a, const void *b)
 int compare_int (const void *a, const void *b)
@@ -37,6 +39,7 @@ int compare_interval_by_start (const void *a, const void *b)
 }
 //}}}
 
+#if 0
 //{{{ void print_intersect_tree_node(struct intersect_tree *t)
 void print_intersect_tree_node(struct intersect_tree *t)
 {
@@ -50,34 +53,61 @@ void print_intersect_tree_node(struct intersect_tree *t)
     printf("\n");
 }
 //}}}
+#endif
 
 //{{{ int b_search_starts(int key,
-int b_search_starts(int key,
+int64_t b_search_starts(int64_t key,
                     struct interval *S,
-                    int lo,
-                    int hi)
+                    int64_t lo,
+                    int64_t hi)
 {
-    int mid = -1;
+    int64_t mid = -1;
     while (hi - lo > 1) {
         mid = (hi + lo) / 2;
+
         if (S[mid].start < key)
             lo = mid;
         else
             hi = mid;
     }
     return hi;
+#ifdef SPLIT_DEBUG
+        fprintf(stderr, "\tb_search_starts\t"
+                        "%" PRId64 " %" PRId64 " %" PRId64 " \t",
+                        key,
+                        hi,
+                        S[hi].start);
+#endif
+
 }
 //}}}
 
 //{{{ int b_search_ends(int key,
-int b_search_ends(int key,
+int64_t b_search_ends(int64_t key,
                   struct interval *S,
-                  int lo,
-                  int hi)
+                  int64_t lo,
+                  int64_t hi)
 {
-    int mid = -1;
+    int64_t mid = -1;
     while (hi - lo > 1) {
         mid = (hi + lo) / 2;
+
+#ifdef SPLIT_DEBUG
+        fprintf(stderr, "k:%" PRId64 ","
+                        "l:%" PRId64 ","
+                        "h:%" PRId64 ","
+                        "m:%" PRId64 ","
+                        "S:%" PRId64 "\t",
+                        key,
+                        lo,
+                        hi,
+                        mid,
+                        S[mid].end);
+#endif
+
+
+
+
         if (S[mid].end < key)
             lo = mid;
         else
@@ -180,6 +210,7 @@ struct interval **rand_set_flat_sets(int num_sets,
 }
 //}}}
 
+#if 0
 //{{{void nway_sweep(int num_sets,
 void nway_sweep(int num_sets,
 		int *set_sizes,
@@ -267,7 +298,9 @@ void nway_sweep(int num_sets,
     }
 }
 //}}}
+#endif
 
+#if 0
 //{{{ void print_nway( int num_sets,
 void print_nway( int num_sets,
                  int s_i,
@@ -370,7 +403,8 @@ void print_nway( int num_sets,
     }
 }
 //}}}
- 
+#endif
+
 //{{{int count_nway( int num_sets,
 int count_nway(int num_sets,
                int s_i,
@@ -387,6 +421,7 @@ int count_nway(int num_sets,
 }
 //}}}
 
+#if 0
 //{{{ void nway_step(int num_sets,
 void nway_step(int num_sets,
                int *set_sizes,
@@ -401,6 +436,7 @@ void nway_step(int num_sets,
     }
 }
 //}}}
+#endif
 
 //{{{ void split_search(struct split_search_node *query,
 void get_center_split(struct interval **S,
@@ -444,6 +480,20 @@ void split_search_o(struct split_search_node *query,
 
     //int num_sets = query->S_dim.end - query->S_dim.start + 1;
     int num_sets = query->S_dim.end + 1;
+
+
+#ifdef SPLIT_DEBUG
+        fprintf(stderr, "pivot interval\t"
+                        "S:%" PRId64 "\t"
+                        "a_mid:%d\t"
+                        "root.start:%" PRId64 "\t"
+                        "root.end:%" PRId64 "\t",
+                        query->S_dim.start,
+                        a_mid,
+                        root.start,
+                        root.end);
+            
+#endif
 
     /* left and right have the same parent as the query and consider the
      * same range in S, but the subsets of each S[i] (values in s_dim)
@@ -526,7 +576,34 @@ void split_search_o(struct split_search_node *query,
         center->s_dim[i].start = s_center.start;
         center->s_dim[i].end = s_center.end;
         center->has_empty += center_is_empty;
+
+#ifdef SPLIT_DEBUG
+        if (i != query->S_dim.start + 1)
+            fprintf(stderr,"\t");
+        //fprintf(stderr, "%d%d%d",
+                //left_is_empty,center_is_empty,right_is_empty);
+
+        fprintf(stderr, 
+                "%"PRId64",%"PRId64" "
+                "%"PRId64",%"PRId64" "
+                "%"PRId64",%"PRId64,
+
+                    s_left.start,
+                    s_left.end,
+                    s_center.start,
+                    s_center.end,
+                    s_right.start,
+                    s_right.end);
+
+
+
+
+#endif
     }
+
+#ifdef SPLIT_DEBUG
+            fprintf(stderr,"\n");
+#endif
 }
 //}}}
 
@@ -541,7 +618,7 @@ void split_search(struct split_search_node *query,
     struct interval *a = query->S[query->S_dim.start];
     struct pair a_dim;
     a_dim = query->s_dim[0];
-    int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
+    int64_t a_mid = (a_dim.end+1 + a_dim.start-1)/2;
     struct interval root = a[a_mid];
 
     int num_sets = query->S_dim.end - query->S_dim.start + 1;
@@ -661,7 +738,7 @@ void get_center(struct interval root,
 
 //{{{ void get_left_center_right(struct interval *a,
 void get_left_center_right(struct interval *a,
-                           int a_mid,
+                           int64_t a_mid,
                            struct pair a_dim,
                            struct interval *s,
                            struct pair s_dim,
@@ -672,22 +749,28 @@ void get_left_center_right(struct interval *a,
                            struct pair *s_right,
                            int *right_is_empty)
 {
+
     struct interval root = a[a_mid];
 
     // s_left_i is the index of the last interval to end before
     // the current interval (root) starts
-    int s_left_i = b_search_ends(root.start,
+    int64_t s_left_i = b_search_ends(root.start,
                                  s,
                                  s_dim.start - 1,
                                  s_dim.end + 1) 
                     - 1;
 
+
     // s_right_i is the index of the first interval to start after
     // the current interval (root) ends
-    int s_right_i = b_search_starts(root.end,
+    int64_t s_right_i = b_search_starts(root.end,
                                     s,
                                     s_dim.start - 1,
                                     s_dim.end + 1);
+
+#ifdef SPLIT_DEBUG
+#endif
+
 
     if ( (s_right_i <= s_dim.end) && (root.end == s[s_right_i].start) )
         ++s_right_i;
@@ -1037,6 +1120,7 @@ void nway_split(int num_sets,
 }
 //}}}
 
+#if 0
 //{{{void print_interval_sets(struct interval **S,
 void print_interval_sets(struct interval **S,
                          int num_sets,
@@ -1047,7 +1131,9 @@ void print_interval_sets(struct interval **S,
         print_interval_set(S[i], set_sizes[i]);
 }
 //}}}
+#endif
 
+#if 0
 //{{{void print_interval_set(struct interval *S,
 void print_interval_set(struct interval *S,
                          int set_size)
@@ -1061,7 +1147,9 @@ void print_interval_set(struct interval *S,
     printf("\n");
 }
 //}}}
+#endif
 
+#if 0
 //{{{void print_slice(char *name,
 void print_slice(int id,
                  struct split_search_node *slice)
@@ -1089,6 +1177,7 @@ void print_slice(int id,
     }
 }
 //}}}
+#endif
 
 //{{{void print_path(struct split_search_node *node)
 void print_path(struct split_search_node *node)
@@ -1149,6 +1238,7 @@ void print_tags(struct tag *T)
 }
 //}}}
 
+#if 0
 //{{{void print_intersection(struct int_list_list *R) 
 void print_intersection(struct int_list_list *R) {
     struct int_list_list *curr = R;
@@ -1164,6 +1254,7 @@ void print_intersection(struct int_list_list *R) {
     }
 }
 //}}}
+#endif
 
 //{{{ int get_nway_sweep_list( int num_sets,
 int get_nway_sweep_list(int num_sets,
@@ -1289,7 +1380,7 @@ void sweep(struct interval **S,
     for (i = 0; i < num_sets; i++)
         next[i] = 0;
 
-    int set_ids[num_sets];
+    int64_t set_ids[num_sets];
     for (i = 0; i < num_sets; i++)
         set_ids[i] = i;
 
@@ -1301,13 +1392,13 @@ void sweep(struct interval **S,
 
     int scan = 1;
     while (scan == 1) {
-        int start_pos;
+        int64_t start_pos;
 
         // get the next element to place into an ordering
         // s_i is the index of the set in S that will constribute the
         // element start_pos is the starting position of that element
-        int *s_i_p = priq_pop(q, &start_pos);
-        int s_i = *s_i_p;
+        int64_t *s_i_p = priq_pop(q, &start_pos);
+        int64_t s_i = *s_i_p;
 
         // remove anything from the orderings that ends before start_pos
         for (i = 0; i < num_sets; i++) {
@@ -2692,6 +2783,10 @@ void split_sets_o(struct interval **S,
     for (i = 0; i < num_sets; ++i) {
         root_node->s_dim[i].start = 0;
         root_node->s_dim[i].end = set_sizes[i] - 1;
+
+#ifdef SPLIT_DEBUG
+        fprintf(stderr, "set sizes:%d\t%d\n", 0, set_sizes[i] - 1);
+#endif
     }
 
     root_node->has_empty = 0;
@@ -3501,8 +3596,14 @@ void read_interval_sets(char *file_name,
             i->curr = (struct interval *) malloc(sizeof(struct interval));
 
             char *save_interval_ptr;
+            /*
             i->curr->start = atoi(strtok_r(l_p, " ", &save_interval_ptr));
             i->curr->end = atoi(strtok_r(NULL, " ", &save_interval_ptr));
+            */
+            i->curr->start = strtoul(strtok_r(l_p, " ", &save_interval_ptr),
+                                     NULL,0);
+            i->curr->end = strtoul(strtok_r(NULL, " ", &save_interval_ptr),
+                                   NULL,0);
             i->next = NULL;
 
             if (head == NULL)
@@ -3747,7 +3848,7 @@ int parse_args(int argc,
     *num_threads = 1;
     int num_inters = 0;
 
-    while ( (c = getopt(argc, argv, "f:n:i:s:l:pr:t:I:") ) != -1) 
+    while ( (c = getopt(argc, argv, "f:n:i:s:l:p:r:t:I:") ) != -1) 
         switch(c) {
             case 'f':
                 file_name = optarg;
@@ -3774,7 +3875,7 @@ int parse_args(int argc,
                 len = atoi(optarg);
                 break;
             case 'p':
-                *to_print = 1;
+                *to_print = atoi(optarg);
                 break;
             case 'h':
                 usage(argv[0]);
@@ -3840,5 +3941,60 @@ void usage(char *prog)
             "\t-r\trange\n"
             "\t-p\tto print set\n"
             "\t-s\trandom seed\n", prog);
+}
+//}}}
+
+//{{{void print_nway_common_interval(struct int_list_list *R)
+void print_nway_common_interval(struct int_list_list *R,
+                                struct interval **S)
+{
+    struct int_list_list *curr = R;
+    while (curr != NULL) {
+        int j;
+        int64_t end = LONG_MAX, start =0;
+        for (j = 0; j < curr->size; ++j) {
+            end = MIN(end, S[j][curr->list[j]].end);
+            start = MAX(start, S[j][curr->list[j]].start);
+        }
+        printf("%" PRId64 "\t%" PRId64 "\n", start, end);
+        curr = curr->next;
+    }
+}
+//}}}
+
+//{{{void print_nway_intervals (struct int_list_list *R)
+void print_nway_intervals (struct int_list_list *R,
+                           struct interval **S)
+{
+    struct int_list_list *curr = R;
+    while (curr != NULL) {
+        int j;
+        for (j = 0; j < curr->size; ++j) {
+            if (j != 0)
+                printf("\t");
+            printf("%" PRId64 ",%" PRId64, S[j][curr->list[j]].start, 
+                                           S[j][curr->list[j]].end);
+        }
+        printf("\n");
+        curr = curr->next;
+    }
+}
+//}}}
+
+//{{{void print_nway_indicies(struct int_list_list *R)
+void print_nway_indicies(struct int_list_list *R,
+                         struct interval **S)
+{
+    struct int_list_list *curr = R;
+    while (curr != NULL) {
+        int j;
+        for (j = 0; j < curr->size; ++j) {
+            if (j != 0)
+                printf("\t");
+            printf("%" PRId64, curr->list[j]);
+        }
+        printf("\n");
+        curr = curr->next;
+    }
 }
 //}}}

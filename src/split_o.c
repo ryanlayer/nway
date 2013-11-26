@@ -42,7 +42,18 @@ int main(int argc, char **argv)
     printf("%lu\n", report());
 #endif
 
+
+    if (to_print == 1)
+        print_nway_indicies(R, S);
+    if (to_print == 2)
+        print_nway_intervals(R, S);
+    if (to_print == 3)
+        print_nway_common_interval(R, S);
+
+
     int i;
+
+#if 0
     if (to_print != 0) {
         struct int_list_list *curr = R;
         while (curr != NULL) {
@@ -66,7 +77,7 @@ int main(int argc, char **argv)
             curr = curr->next;
         }
     }
-
+#endif
 
     free_int_list_list(R);
 

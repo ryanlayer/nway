@@ -157,15 +157,15 @@ void print_intersect_tree_node(struct intersect_tree *t);
 
 void print_tags(struct tag *T);
 
-int b_search_starts(int key,
+int64_t b_search_starts(int64_t key,
 		    struct interval *S,
-		    int lo,
-		    int hi);
+		    int64_t lo,
+		    int64_t hi);
 
-int b_search_ends(int key,
+int64_t b_search_ends(int64_t key,
 		  struct interval *S,
-		  int lo,
-		  int hi);
+		  int64_t lo,
+		  int64_t hi);
 
 struct interval **rand_flat_sets(int num_sets,
 				 int num_intervals,
@@ -196,7 +196,7 @@ void nway_step(int num_sets,
 	       int to_print);
 
 void get_left_center_right(struct interval *a,
-			   int a_mid,
+			   int64_t a_mid,
 			   struct pair a_dim,
 			   struct interval *s,
 			   struct pair s_dim,
@@ -459,5 +459,12 @@ void psplit_sets_o (struct interval **S,
                     int num_threads);
 
 void *pone_split_o(void *ptr);
+
+void print_nway_common_interval(struct int_list_list *R,
+                                struct interval **S);
+void print_nway_intervals (struct int_list_list *R,
+                           struct interval **S);
+void print_nway_indicies(struct int_list_list *R,
+                         struct interval **S);
 #endif
 

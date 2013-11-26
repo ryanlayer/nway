@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import numpy as np
+import glob
 
 from optparse import OptionParser
 
@@ -14,7 +15,7 @@ parser.add_option("-g",
 parser.add_option("-b",
     "--bed_files",
     dest="bed_files",
-    help="commona sep list of BED files")
+    help="BED files, can have wildcards")
 
 
 (options, args) = parser.parse_args()
@@ -34,7 +35,9 @@ for l in f:
     offsets[a[0]] = offset
     offset += int(a[1])
 
-for file_name in options.bed_files.split(','):
+#for file_name in options.bed_files.split(','):
+
+for file_name in glob.glob(options.bed_files):
     f = open(file_name,'r')
 
     line = []

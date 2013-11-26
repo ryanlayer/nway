@@ -47,19 +47,12 @@ int main(int argc, char **argv)
     printf("%lu\n", report());
 #endif
 
-    if (to_print != 0) {
-        struct int_list_list *curr = R;
-        while (curr != NULL) {
-            int j;
-            int min_v = INT_MAX, max_v =0;
-            for (j = 0; j < curr->size; ++j) {
-                min_v = MIN(min_v, S[j][curr->list[j]].end);
-                max_v = MAX(max_v, S[j][curr->list[j]].start);
-            }
-            printf("%d\t%d\n", max_v, min_v);
-            curr = curr->next;
-        }
-    }
+    if (to_print == 1)
+        print_nway_indicies(R, S);
+    if (to_print == 2)
+        print_nway_intervals(R, S);
+    if (to_print == 3)
+        print_nway_common_interval(R, S);
 
     free_int_list_list(R);
 
