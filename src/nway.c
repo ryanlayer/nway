@@ -1132,30 +1132,6 @@ void split_psweep(struct interval **S,
                   R,
                   num_threads,
                   step_size);
-#if 0
-    struct split_search_node_list *curr = leaf_head;
-
-    struct int_list_list *R_head=NULL, *R_tail=NULL;
-    while (curr != NULL) {
-        struct split_search_node *node = curr->node;
-        struct int_list_list *curr_head, *curr_tail;
-
-        int num_R;
-        sweep_subset(S, num_sets, node->s_dim, &curr_head, &curr_tail, &num_R);
-
-        if (num_R > 0) {
-            if (R_head == NULL) {
-                R_head = curr_head;
-                R_tail = curr_tail;
-            } else {
-                R_tail->next = curr_head;
-                R_tail = curr_tail;
-            }
-        }
-
-        curr = curr->next;
-    }
-#endif
 
 #ifdef IN_TIME_SPLIT
     stop();
@@ -1244,6 +1220,7 @@ void *run_sweep_subset(void *arg)
     // skip to first, id*step_size is the first node to consider
     int node_id = 0;
     struct split_search_node_list *curr = p->subset_head;
+
     while ( (curr != NULL) && (node_id < (p->id*p->step_size)) ){
         curr = curr->next;
         node_id += 1;
@@ -1251,10 +1228,37 @@ void *run_sweep_subset(void *arg)
 
     // sweep the current regions, then move to the next
     int num_to_sweep = p->step_size, num_to_skip, num_R;
+
+    num_to_skip = (p->num_threads - 1) * p->step_size;
+
+    /*
+    fprintf(stderr,"id:%d\tto_skip:%d\tstep:%d\t"
+            "num_to_sweep:%d\tnum_to_skip:%d\n",
+            p->id,
+            p->id*p->step_size,
+            p->step_size,
+            num_to_sweep,
+            num_to_skip);
+    */
+
+    num_to_skip = 0;
+
     while (curr != NULL) {
+
+        if (num_to_skip > 0) {
+            fprintf(stderr,"id:%d\tto_skip:%d\n",p->id, num_to_skip);
+            num_to_skip -= 1;
+        } else if (num_to_skip == 0) {
+            num_to_sweep = p->step_size;
+            num_to_skip = -1;
+        }
 
         //sweep the current region
         if (num_to_sweep > 0) {
+            fprintf(stderr,"id:%d\tto_sweep:%d\t%p\n",
+                        p->id,
+                        num_to_sweep,
+                        curr);
 
             struct int_list_list *curr_head, *curr_tail;
             sweep_subset(p->S,
@@ -1274,21 +1278,9 @@ void *run_sweep_subset(void *arg)
             }
 
             num_to_sweep -= 1;
-
-        //once we reach the end of this region, need to start skipping
-        } else if (num_to_sweep == 0) {
-            // in this itteration we are skipping the current node, so we must subtract
-            // one from the total number to be skipped
-            num_to_skip = (p->num_threads - 1) * p->step_size - 1;
+        }  else if (num_to_sweep == 0) {
+            num_to_skip = (p->num_threads - 1) * p->step_size;
             num_to_sweep = -1;
-        //keep skipping
-        } else if (num_to_skip > 1) {
-            num_to_skip -= 1;
-        //once we reach the the last item to be skipped we re-up the sweep count
-        //and start sweeping on the next node
-        } if (num_to_skip == 1) {
-            num_to_sweep = p->step_size;
-            num_to_skip = -1;
         }
 
         curr = curr->next;
