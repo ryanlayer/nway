@@ -1832,7 +1832,9 @@ void *pone_split_o(void *ptr)
 
         // Grab the work and move the counter of works left down by one
         struct split_search_node *curr = *(args->curr);
+
         *(args->curr) = (*(args->curr))->next;
+        assert (*(args->curr) != NULL);
         *(args->work) = *(args->work) - 1;
 
         // Release lock
@@ -1905,6 +1907,8 @@ void *pone_split_o(void *ptr)
                 *(args->curr) = new_work_head;
                 *(args->tail) = new_work_tail;
             } else {
+                new_work_tail->next = (*(args->tail))->next; 
+
                 (*(args->tail))->next = new_work_head;
                 *(args->tail) = new_work_tail;
             }
