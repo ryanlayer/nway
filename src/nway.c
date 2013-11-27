@@ -1246,7 +1246,7 @@ void *run_sweep_subset(void *arg)
     while (curr != NULL) {
 
         if (num_to_skip > 0) {
-            fprintf(stderr,"id:%d\tto_skip:%d\n",p->id, num_to_skip);
+            //fprintf(stderr,"id:%d\tto_skip:%d\n",p->id, num_to_skip);
             num_to_skip -= 1;
         } else if (num_to_skip == 0) {
             num_to_sweep = p->step_size;
@@ -1255,10 +1255,10 @@ void *run_sweep_subset(void *arg)
 
         //sweep the current region
         if (num_to_sweep > 0) {
-            fprintf(stderr,"id:%d\tto_sweep:%d\t%p\n",
-                        p->id,
-                        num_to_sweep,
-                        curr);
+            //fprintf(stderr,"id:%d\tto_sweep:%d\t%p\n",
+                        //p->id,
+                        //num_to_sweep,
+                        //curr);
 
             struct int_list_list *curr_head, *curr_tail;
             sweep_subset(p->S,
@@ -2486,7 +2486,7 @@ void psplit_sets (struct interval **S,
 
         int num_added = 0;
         while (curr != NULL) {
-            fprintf(stderr, "curr:%p\n", curr);
+            //fprintf(stderr, "curr:%p\n", curr);
             struct one_split_args *args = (struct one_split_args *)
                     malloc(sizeof(struct one_split_args));
             args->curr = curr;
