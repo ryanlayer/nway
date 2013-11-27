@@ -2,15 +2,17 @@ CC=gcc
 SRC_DIR=src
 OBJ_DIR=obj
 BIN_DIR=bin
-DFLAGS=-D DEBUGITTER
-DFLAGS=-D IN_TIME_SPLIT
+#DFLAGS=-D DEBUGITTER
+#DFLAGS=-D IN_TIME_SPLIT
+#DFLAGS=-D SPLIT_DEBUG
 #CFLAGS=-I. -lpthread -g -pg
-CFLAGS=-O3 -lpthread
+CFLAGS=-O3 
 DEPS = 
 OBJ = $(OBJ_DIR)/nway.o \
 	$(OBJ_DIR)/pq.o \
 	$(OBJ_DIR)/timer.o \
-	$(OBJ_DIR)/threadpool.o 
+	$(OBJ_DIR)/threadpool.o \
+	$(OBJ_DIR)/utils.o 
 EXECS=split \
 	split_o \
 	psplit_o \

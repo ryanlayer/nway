@@ -24,13 +24,6 @@ int main(int argc, char **argv)
                        &to_print,
                        &num_threads);
 
-    /*
-    if (to_print != 0) {
-        print_interval_sets(S, num_sets, set_sizes);
-        printf("\n");
-    }
-    */
-
     struct int_list_list *R;
     R = NULL;
 #ifndef IN_TIME_SPLIT
@@ -42,7 +35,6 @@ int main(int argc, char **argv)
     printf("%lu\n", report());
 #endif
 
-
     if (to_print == 1)
         print_nway_indicies(R, S);
     if (to_print == 2)
@@ -50,37 +42,9 @@ int main(int argc, char **argv)
     if (to_print == 3)
         print_nway_common_interval(R, S);
 
-
-    int i;
-
-#if 0
-    if (to_print != 0) {
-        struct int_list_list *curr = R;
-        while (curr != NULL) {
-            int j;
-            int min_v = INT_MAX, max_v =0;
-            for (j = 0; j < curr->size; ++j) {
-                /*
-                if (j!=0)
-                    printf("\t");
-
-                printf("%d,%d,%d", 
-                                curr->list[j],
-                                S[j][curr->list[j]].start,
-                                S[j][curr->list[j]].end);
-                */
-                min_v = min(min_v, S[j][curr->list[j]].end);
-                max_v = max(max_v, S[j][curr->list[j]].start);
-            }
-            //printf("\t%d\t%d\n", max_v, min_v);
-            printf("%d\t%d\n", max_v, min_v);
-            curr = curr->next;
-        }
-    }
-#endif
-
     free_int_list_list(R);
 
+    int i;
     for (i = 0; i < num_sets; i++) 
         free(S[i]);
 }

@@ -41,23 +41,17 @@ int main(int argc, char **argv)
     printf("%lu\n", report());
 #endif
 
-    int i;
-    if (to_print != 0) {
-        struct int_list_list *curr = R;
-        while (curr != NULL) {
-            int j;
-            for (j = 0; j < curr->size; ++j) {
-                if (j != 0)
-                    printf("\t");
-                printf("%d", curr->list[j]);
-            }
-            printf("\n");
-            curr = curr->next;
-        }
-    }
+    if (to_print == 1)
+        print_nway_indicies(R, S);
+    if (to_print == 2)
+        print_nway_intervals(R, S);
+    if (to_print == 3)
+        print_nway_common_interval(R, S);
+
 
     free_int_list_list(R);
 
+    int i;
     for (i = 0; i < num_sets; i++) 
         free(S[i]);
 }

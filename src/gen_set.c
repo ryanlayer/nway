@@ -3,6 +3,7 @@
 #include "timer.h"
 #include "pq.h"
 #include "nway.h"
+#include "utils.h"
 
 
 int main(int argc, char **argv)
