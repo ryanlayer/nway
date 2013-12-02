@@ -52,7 +52,6 @@ COMBOS=`cat $FILENAME`
 
 APPS_TS="
 sweep,1
-split,1
 split_o,1
 split_sweep,1
 psplit_centers,10
