@@ -6,12 +6,16 @@
 #include <unistd.h>
 #include <limits.h>
 #include <string.h>
-
+#include <sys/types.h>
+#include <dirent.h>
+#include <glob.h>
 
 //{{{ void usage(char *prog)
 void usage(char *prog)
 {
     fprintf(stderr,"usage:%s [options]\n"
+            "\t-b\tbed files\n"
+            "\t-g\tgenome file\n"
             "\t-f\tfile name\n"
             "\t-n\tnumber of sets\n"
             "\t-i\tnumber of intervals per set\n"
@@ -35,6 +39,8 @@ int parse_args(int argc,
     char c;
 
     char *file_name = NULL;
+    char *bed_files = NULL;
+    char *genome_file = NULL;
     *num_sets = 0;
     int num_elements = 0;
     int seed = 1;
@@ -44,8 +50,14 @@ int parse_args(int argc,
     *num_threads = 1;
     int num_inters = 0;
 
-    while ( (c = getopt(argc, argv, "f:n:i:s:l:p:r:t:I:") ) != -1) 
+    while ( (c = getopt(argc, argv, "f:n:i:s:l:p:r:t:I:b:g:") ) != -1) 
         switch(c) {
+            case 'g':
+                genome_file = optarg;
+                break;
+            case 'b':
+                bed_files = optarg;
+                break;
             case 'f':
                 file_name = optarg;
                 break;
@@ -81,7 +93,9 @@ int parse_args(int argc,
                 return(1);
         }
 
-    if (file_name != NULL)
+    if ( (bed_files != NULL) && (genome_file != NULL) )
+        read_bed_files(bed_files, genome_file, S, set_sizes, num_sets);
+    else if (file_name != NULL)
         read_interval_sets(file_name, S, set_sizes, num_sets);
     else if ( (num_sets > 0) && (num_elements > 0) && (len > 0) ) {
         if (range == 0)
@@ -153,6 +167,26 @@ int compare_interval_by_start (const void *a, const void *b)
         return 0;
 }
 //}}}
+
+//{{{int compare_chrstar(void const *a, void const *b) { 
+int compare_charstar(void const *a, void const *b)
+{ 
+    char const *aa = (char const *)a;
+    char const *bb = (char const *)b;
+    return strcmp(aa, bb);
+}
+//}}}
+
+//{{{int compare_genome_offset(void const *a, void const *b) { 
+int compare_genome_offset(void const *a, void const *b) 
+{ 
+    const struct genome_offset *aa = (const struct genome_offset *)a;
+    const struct genome_offset *bb = (const struct genome_offset *)b;
+    return strcmp(aa->chr, bb->chr);
+}
+//}}}
+
+
 
 //{{{void gen_simple_sets(struct interval ***S,
 void gen_simple_sets(struct interval ***S,
@@ -391,6 +425,193 @@ void read_interval_sets(char *file_name,
         il_curr = il_curr->next;
         ++j;
     }
+}
+//}}}
+
+//{{{ void read_genome_file(char *genome_file,
+void read_genome_file(char *genome_file,
+                      struct genome_offset **genome_offsets,
+                      int *num_chr)
+{
+    int MAX_LINE_SIZE=1024;
+    char *line = (char *) malloc(MAX_LINE_SIZE * sizeof(char));
+    FILE *fp;
+    char *chr;
+    int64_t offset;
+
+    *num_chr = 0;
+
+    fp = fopen(genome_file, "r");
+
+    if (fp == NULL)
+        perror("Error opening file.");
+
+    while( fgets(line, MAX_LINE_SIZE, fp) != NULL ) 
+        *num_chr += 1;
+
+    fclose(fp);
+
+    *genome_offsets = (struct genome_offset *) 
+            malloc(*num_chr * sizeof(struct genome_offset));
+
+    fp = fopen(genome_file, "r");
+
+    int i = 0;
+    while( fgets(line, MAX_LINE_SIZE, fp) != NULL ) {
+        chr = strtok(line, "\t");
+        offset = strtoul(strtok(NULL, "\t"), NULL, 0);
+        (*genome_offsets)[i].chr = 
+                (char *) malloc (strlen(chr) * sizeof(char));
+        strcpy((*genome_offsets)[i].chr, chr);
+        (*genome_offsets)[i].offset = offset;
+
+        ++i;
+    }
+
+    fclose(fp);
+
+    int64_t o = 0, t_o; 
+    for (i = 0; i < *num_chr; ++i) {
+        t_o = (*genome_offsets)[i].offset;
+        (*genome_offsets)[i].offset = o;
+        o = o + t_o;
+    }
+}
+//}}}
+
+//{{{void read_bed_file(char *bed_file,
+void read_bed_file(char *bed_file,
+                   struct interval **S,
+                   int *set_size,
+                   struct genome_offset *genome_offsets)
+{
+    int MAX_LINE_SIZE=1024;
+    char *line = (char *) malloc(MAX_LINE_SIZE * sizeof(char));
+    FILE *fp;
+    char *chr;
+    int64_t start, end;
+    size_t cnt;
+
+    *set_size = 0;
+
+    fp = fopen(bed_file, "r");
+
+    if (fp == NULL)
+        perror("Error opening file.");
+
+    while( fgets(line, MAX_LINE_SIZE, fp) != NULL ) 
+        *set_size += 1;
+
+    fclose(fp);
+
+    *S = (struct interval *) malloc(*set_size * sizeof(struct interval));
+
+    fp = fopen(bed_file, "r");
+
+    int offset_i = 0, S_i = 0;
+    int64_t offset_v = genome_offsets[offset_i].offset;
+    while( fgets(line, MAX_LINE_SIZE, fp) != NULL ) {
+        chr = strtok(line, "\t");
+        start = strtoul(strtok(NULL, "\t"), NULL, 0);
+        end = strtoul(strtok(NULL, "\t"), NULL, 0);
+
+        while ( strcmp(genome_offsets[offset_i].chr, chr) != 0 ) {
+            offset_i += 1;
+            offset_v = genome_offsets[offset_i].offset;
+        }
+
+        (*S)[S_i].start = start + offset_v;
+        (*S)[S_i].end = end + offset_v - 1;
+
+        S_i += 1;
+    }
+
+    fclose(fp);
+}
+//}}}
+
+//{{{void read_bed_files(char *bed_files,
+void read_bed_files(char *bed_files,
+                    char *genome_file,
+                    struct interval ***S,
+                    int **set_sizes,
+                    int *num_sets)
+{
+    struct genome_offset *genome_offsets;
+    int num_chr;
+    read_genome_file(genome_file,
+                     &genome_offsets,
+                     &num_chr);
+
+    int MAX_LINE_SIZE=1024;
+    char *line = (char *) malloc(MAX_LINE_SIZE * sizeof(char));
+    FILE *fp;
+    char *chr;
+    int64_t start, end;
+    size_t cnt;
+
+    glob_t glob_results;
+    glob(bed_files, GLOB_NOCHECK, 0, &glob_results);
+
+    char **p;
+    *num_sets = 0;
+    for (p = glob_results.gl_pathv, cnt = glob_results.gl_pathc;
+        cnt; p++, cnt--)
+        *num_sets += 1;
+
+    *set_sizes = (int *) malloc(*num_sets * sizeof(int));
+    *S = (struct interval **) malloc(*num_sets * sizeof(struct interval *));
+    int S_i = 0;
+    for (p = glob_results.gl_pathv, cnt = glob_results.gl_pathc;
+        cnt; p++, cnt--) {
+        int set_size;
+        read_bed_file(*p, &((*S)[S_i]), &set_size, genome_offsets);
+        (*set_sizes)[S_i] = set_size;
+        S_i += 1;
+    }
+
+    /*
+    struct dirent *dp;
+    DIR *dfd = opendir(bed_files);
+    if(dfd != NULL) {
+        while((dp = readdir(dfd)) != NULL)
+            printf("%s\n", dp->d_name);
+        closedir(dfd);
+    }
+    */
+
+    /*
+    int num_i = 0;
+
+    fp = fopen(bed_files, "r");
+
+    if (fp == NULL)
+        perror("Error opening file.");
+
+    while( fgets(line, MAX_LINE_SIZE, fp) != NULL ) 
+        num_i += 1;
+
+    fclose(fp);
+
+    fp = fopen(bed_files, "r");
+
+    int offset_i = 0;
+    int64_t offset_v = genome_offsets[offset_i].offset;
+    while( fgets(line, MAX_LINE_SIZE, fp) != NULL ) {
+        chr = strtok(line, "\t");
+        start = strtoul(strtok(NULL, "\t"), NULL, 0);
+        end = strtoul(strtok(NULL, "\t"), NULL, 0);
+
+        while ( strcmp(genome_offsets[offset_i].chr, chr) != 0 ) {
+            offset_i += 1;
+            offset_v = genome_offsets[offset_i].offset;
+        }
+
+        //printf("%llu\t%llu\n", start + offset_v, end + offset_v);
+    }
+
+    fclose(fp);
+    */
 }
 //}}}
 

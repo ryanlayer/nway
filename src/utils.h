@@ -6,9 +6,19 @@
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
+struct genome_offset
+{
+    char *chr;
+    int64_t offset;
+};
+
 int compare_int (const void *a, const void *b);
 
 int compare_interval_by_start (const void *a, const void *b);
+
+int compare_charstar(void const *a, void const *b);
+
+int compare_genome_offset(void const *a, void const *b);
 
 int point_overlap_test(int64_t start,
                        int64_t end,
@@ -54,6 +64,21 @@ void read_interval_sets(char *file_name,
                         struct interval ***S,
                         int **set_sizes,
                         int *num_sets);
+
+void read_genome_file(char *genome_file,
+                      struct genome_offset **genome_offsets,
+                      int *num_chr);
+
+void read_bed_file(char *bed_file,
+                   struct interval **S,
+                   int *set_size,
+                   struct genome_offset *genome_offsets);
+
+void read_bed_files(char *bed_files,
+                    char *genome_file,
+                    struct interval ***S,
+                    int **set_sizes,
+                    int *num_sets);
 
 void print_nway_common_interval(struct int_list_list *R,
                                 struct interval **S);

@@ -9,25 +9,27 @@ import operator
 
 
 class Data:
-    def __init__ (self, A):
+    def __init__ (self, A, op):
         self.app = A[0]
         self.threads = int(A[1])
         self.sample = A[2]
         self.size = int(A[3])
-        self.time = int(A[4])
+
+        if op == 'mean':
+            self.time = np.mean(\
+                    [int(x) for x in A[4].split(',') if x.isdigit()])
+
+        if op == 'min':
+            self.time = min(\
+                    [int(x) for x in A[4].split(',') if x.isdigit()])
+
+        if op == 'max':
+            self.time = max(\
+                    [int(x) for x in A[4].split(',') if x.isdigit()])
+
 
     def get_name(self):
         return self.app + ", " + str(self.threads)
-
-#lumpy_color='#003366'
-#gasv_color='#0080ff'
-#delly_color='#99ccff'
-
-#lumpy_color='#99ccff'
-#gasv_color='#99ff99'
-#delly_color='#ff9999'
-##pindel_color='#ffff99'
-#pindel_color='#bababa'
 
 parser = OptionParser()
 parser.add_option("-d",
@@ -45,6 +47,10 @@ parser.add_option("-t",
                   dest="title",
                   help="Output file")
 
+parser.add_option("--op",
+                  default="mean",
+                  dest="data_op",
+                  help="Data opperation")
 
 
 (options, args) = parser.parse_args()
@@ -64,7 +70,7 @@ R={}
 O=[]
 
 for l in f:
-    data = Data(l.rstrip().split('\t'))
+    data = Data(l.rstrip().split('\t'),options.data_op)
 
     if not data.app in R:
         R[data.app] = {}
@@ -78,8 +84,6 @@ for l in f:
         O.append(data.sample)
      
 f.close()
-
-#sorted_samples = sorted(O.iteritems(), key=operator.itemgetter(1))
 
 matplotlib.rcParams.update({'font.size': 10})
 fig = matplotlib.pyplot.figure(figsize=(10,2.5),dpi=300)
@@ -102,7 +106,6 @@ colors={1:'black',10:'blue',20:'red',30:'green'}
 lables=[]
 plots=[]
 plots_seen=[]
-#for app in R:
 for app in app_list:
     i = 0
     lables = []
@@ -126,12 +129,9 @@ ax.set_xlim([-1,i])
 ax.set_ylabel('Run Time(mircroseconds)')
 ax.set_xlabel('Number of sets')
 ax.set_title(options.title)
-print len(plots)
-print plots_seen
 ax.legend(plots, plots_seen,loc=0,numpoints=1,ncol=2,
     prop={'size':8},
     frameon=False)
-#matplotlib.pyplot.box(on=None)
 
 matplotlib.pyplot.savefig(options.out_file,bbox_inches='tight')
 

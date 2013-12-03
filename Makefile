@@ -3,7 +3,7 @@ SRC_DIR=src
 OBJ_DIR=obj
 BIN_DIR=bin
 #DFLAGS=-D DEBUGITTER
-#DFLAGS=-D IN_TIME_SPLIT
+DFLAGS=-D IN_TIME_SPLIT
 #DFLAGS=-D SPLIT_DEBUG
 #CFLAGS=-I. -lpthread -g -pg
 CFLAGS=-O3 
@@ -73,6 +73,9 @@ set_test: set_test.o $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
 gen_set: $(OBJ_DIR)/gen_set.o $(OBJ)
+	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
+
+open_bed: $(OBJ_DIR)/open_bed.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 get_l1: $(OBJ_DIR)/get_l1.o $(OBJ)
