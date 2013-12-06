@@ -574,7 +574,7 @@ int get_nway_sweep_list(int num_sets,
 //{{{ void sweep(struct interval **S,
 void sweep(struct interval **S,
            int *set_sizes,
-          int num_sets,
+           int num_sets,
            struct int_list_list **R,
            int *num_R)
 {
@@ -583,6 +583,23 @@ void sweep(struct interval **S,
     start();
 #endif
 
+#if 1
+    struct int_list_list *R_head, *R_tail;
+    struct pair s_dim[num_sets];
+
+    int i;
+    for (i = 0; i < num_sets; ++i) {
+        s_dim[i].start = 0;
+        s_dim[i].end = set_sizes[i];
+    }
+
+    sweep_subset(S, num_sets, s_dim, &R_head, &R_tail, num_R);
+
+    *R = R_head;
+#endif
+
+
+#if 0
     *num_R = 0;
 
     struct int_list_list *nways_head, *nways_tail;
@@ -689,6 +706,7 @@ void sweep(struct interval **S,
     *R = nways_head;
 
     priq_free(q);
+#endif
 
 #ifdef IN_TIME_SPLIT
     stop();
@@ -722,8 +740,6 @@ void sweep_subset(struct interval **S,
     int i;
     // Initialize the ordering for S
     for (i = 0; i < num_sets; i++) {
-        //ordering[i].start = 0;
-        //ordering[i].end = -1;
         ordering[i].start = s_dim[i].start;
         ordering[i].end = s_dim[i].start - 1;
     }
@@ -731,11 +747,8 @@ void sweep_subset(struct interval **S,
     int next[num_sets];
     // next will be the first interval defined by s_dim[i].start
     for (i = 0; i < num_sets; i++) {
-        //next[i] = 0;
         next[i] = s_dim[i].start;
-        //printf("%d %d\t", s_dim[i].start, s_dim[i].end);
     }
-    //printf("\n");
 
     int set_ids[num_sets];
     for (i = 0; i < num_sets; i++)
@@ -747,35 +760,57 @@ void sweep_subset(struct interval **S,
         next[i] += 1;
     }
 
+    // use another priority queue to manage intervals leaving context
+    pri_queue c = priq_new(0);
+
     int scan = 1;
+    int num_empty = num_sets;
     while (scan == 1) {
-        int64_t start_pos;
+        int64_t start_pos, end_pos;
 
         // get the next element to place into an ordering
         // s_i is the index of the set in S that will constribute the
         // element start_pos is the starting position of that element
         int *s_i_p = priq_pop(q, &start_pos);
         int s_i = *s_i_p;
-        //printf("%d %d\n", s_i, start_pos);
 
+        //fprintf(stderr, "s_i:%d\tstart_pos:%llu\n", s_i, start_pos);
+
+        // keep removing elements from the queue until it is either empty or
+        // the next element ends after the new element starts
+        //if (priq_top(c, &end_pos) != NULL)
+            //fprintf(stderr, "top end_pos:%llu\n", end_pos);
+
+        while ( (priq_top(c, &end_pos) != NULL) &&
+                (end_pos < start_pos) ) {
+
+            //fprintf(stderr, "gone:%llu\n", end_pos);
+        
+            int *cs_i_p = priq_pop(c, &end_pos);
+            int cs_i = *cs_i_p;
+            ordering[cs_i].start += 1;
+
+            // check to see if this orderd just went empty
+            if (ordering[cs_i].end < ordering[cs_i].start) {
+                num_empty++;
+            }
+        }
+
+        // Add the element to the ordering for that set
+        // First check to see if adding this element will move this set from
+        // empty to non empty, if so, then reduce the number of non empties
+        if (ordering[s_i].end < ordering[s_i].start)
+            num_empty--;
+   
+#if 0
         // remove anything from the orderings that ends before start_pos
         for (i = 0; i < num_sets; i++) {
             int j;
             for (j = ordering[i].start; j <= ordering[i].end; ++j) {
                 if (S[i][j].end < start_pos)  {
-                    //printf("rem:%d\t%d %d\n",i,S[i][j].start,S[i][j].end);
                     ordering[i].start += 1;
                 }
             }
-        }
-
-        // Make sure that there is somethin left to push before pushing
-        // the next elemetn from S[s_i]
-        //if (next[s_i] < set_sizes[s_i]) {
-        // s_dim is an inclusive range
-        if (next[s_i] <= s_dim[s_i].end) {
-            priq_push(q, &set_ids[s_i], S[s_i][next[s_i]].start);
-            next[s_i] += 1;
         }
 
         // Check to see if adding this element causes an n-way
@@ -790,9 +825,28 @@ void sweep_subset(struct interval **S,
             if (ordering[i].end >= ordering[i].start)
                 is_nway += 1;
 
+        // check to see if we can stop scanning To stop scanning the last
+        // element in a set must have been moved out of context
+        for (i = 0; i < num_sets; i++) {
+            if (ordering[i].start > s_dim[i].end) {
+                scan = 0;
+            }
+        }
+#endif
+
+        // Make sure that there is somethin left to push before pushing
+        // the next elemetn from S[s_i]
+        // s_dim is an inclusive range
+        if (next[s_i] <= s_dim[s_i].end) {
+            priq_push(q, &set_ids[s_i], S[s_i][next[s_i]].start);
+            next[s_i] += 1;
+        }
+
         // If all other orderings contain elements, than we have an n-way
         // intersection, print it
-        if (is_nway == num_sets - 1) {
+        //if (is_nway == num_sets - 1) {
+        //fprintf(stderr, "num_empty:%d\n", num_empty);
+        if (num_empty == 0) {
             struct int_list_list *r_head, *r_tail;
 
             *num_R += get_nway_sweep_list(num_sets,
@@ -809,18 +863,15 @@ void sweep_subset(struct interval **S,
                 nways_tail = r_tail;
             }
         }
-
-        // Add the element to the ordering for that set
+         
         ordering[s_i].end+=1;
 
-        // check to see if we can stop scanning To stop scanning the last
-        // element in a set must have been moved out of context
-        for (i = 0; i < num_sets; i++) {
-            //if (ordering[i].start >= set_sizes[i]) {
-            if (ordering[i].start > s_dim[i].end) {
-                scan = 0;
-            }
-        }
+        // add this element to the in-context queue
+        //fprintf(stderr,"push:%llu\t%llu\n", S[s_i][ordering[s_i].end].start,
+                //S[s_i][ordering[s_i].end].end);
+        priq_push(c, &set_ids[s_i], S[s_i][ordering[s_i].end].end);
+
+
 
         // we can also stop scanning if there are no other intervals to add
         if (q->n == 1) {

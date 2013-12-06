@@ -68,7 +68,7 @@ int * priq_pop(pri_queue q, int64_t *pri)
 /* get the top element without removing it from queue */
 int* priq_top(pri_queue q, int64_t *pri)
 {
-    if (q->n == 1) return 0;
+    if (q->n == 1) return NULL;
     if (pri) *pri = q->buf[1].pri;
     return q->buf[1].data;
 }
