@@ -200,6 +200,11 @@ void split_search_o(struct split_search_node *query,
         center->s_dim[i].end = s_center.end;
         center->has_empty += center_is_empty;
 
+        if ( (left->has_empty > 0) &&
+             (center->has_empty > 0) &&
+             (right->has_empty > 0) )
+            break;
+
 #ifdef SPLIT_DEBUG
         if (i != query->S_dim.start + 1)
             fprintf(stderr,"\t");
@@ -455,10 +460,10 @@ void get_left_center_right(struct interval *a,
 
 //{{{ int get_nway_sweep_list( int num_sets,
 int get_nway_sweep_list(int num_sets,
-                         int s_i,
-                         struct pair *ordering,
-                         struct int_list_list **r_head,
-                         struct int_list_list **r_tail)
+                        int s_i,
+                        struct pair *ordering,
+                        struct int_list_list **r_head,
+                        struct int_list_list **r_tail)
 {
     int N = 1;
     // Create the first nway list
@@ -485,7 +490,6 @@ int get_nway_sweep_list(int num_sets,
             // set the first item in the ordering
             struct int_list_list *curr = head;
             while (curr != NULL) {
-                //printf("0\t%d %d\n", i, ordering[i].start);
                 curr->list[i] = ordering[i].start;
                 curr = curr->next;
             }
@@ -516,7 +520,6 @@ int get_nway_sweep_list(int num_sets,
                            curr->list,
                            num_sets*sizeof(int));
 
-                    //printf("1\t%d %d\n", i, j);
                     nway_copy->list[i] = j;
 
 
@@ -575,8 +578,25 @@ void sweep(struct interval **S,
     *R = R_head;
 #endif
 
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_time = report();
+#endif
 
-#if 0
+#ifdef IN_TIME_SPLIT
+    printf("sweep:%lu\ttotal:%lu\n", sweep_time,sweep_time);
+#endif
+}
+//}}}
+
+//{{{ void sweep_subset(struct interval **S,
+void sweep_subset_mem(struct interval **S,
+                      int num_sets,
+                      struct pair *s_dim,
+                      struct int_list_list **R_head,
+                      struct int_list_list **R_tail,
+                      int *num_R)
+{
     *num_R = 0;
 
     struct int_list_list *nways_head, *nways_tail;
@@ -586,27 +606,35 @@ void sweep(struct interval **S,
     int i;
     // Initialize the ordering for S
     for (i = 0; i < num_sets; i++) {
-        ordering[i].start = 0;
-        ordering[i].end = -1;
+        ordering[i].start = s_dim[i].start;
+        ordering[i].end = s_dim[i].start - 1;
     }
 
     int next[num_sets];
-    for (i = 0; i < num_sets; i++)
-        next[i] = 0;
+    // next will be the first interval defined by s_dim[i].start
+    for (i = 0; i < num_sets; i++) {
+        next[i] = s_dim[i].start;
+    }
 
     int set_ids[num_sets];
     for (i = 0; i < num_sets; i++)
         set_ids[i] = i;
 
-    pri_queue q = priq_new(0);
+    //pri_queue q = priq_new(0);
+    pri_queue q = priq_new(num_sets * 10);
     for (i = 0; i < num_sets; ++i) {
         priq_push(q, &set_ids[i], S[i][next[i]].start);
         next[i] += 1;
     }
 
+    // use another priority queue to manage intervals leaving context
+    //pri_queue c = priq_new(0);
+    pri_queue c = priq_new(num_sets * 10);
+
     int scan = 1;
+    int num_empty = num_sets;
     while (scan == 1) {
-        int64_t start_pos;
+        int64_t start_pos, end_pos;
 
         // get the next element to place into an ordering
         // s_i is the index of the set in S that will constribute the
@@ -614,45 +642,49 @@ void sweep(struct interval **S,
         int *s_i_p = priq_pop(q, &start_pos);
         int s_i = *s_i_p;
 
-        // remove anything from the orderings that ends before start_pos
-        for (i = 0; i < num_sets; i++) {
-            int j;
-            for (j = ordering[i].start; j <= ordering[i].end; ++j) {
-                if (S[i][j].end < start_pos)  {
-                    ordering[i].start += 1;
-                }
+        // keep removing elements from the queue until it is either empty or
+        // the next element ends after the new element starts
+        while ( (priq_top(c, &end_pos) != NULL) &&
+                (end_pos < start_pos) ) {
+
+            //fprintf(stderr, "gone:%llu\n", end_pos);
+        
+            int *cs_i_p = priq_pop(c, &end_pos);
+            int cs_i = *cs_i_p;
+            ordering[cs_i].start += 1;
+
+            // check to see if this orderd just went empty
+            if (ordering[cs_i].end < ordering[cs_i].start) {
+                num_empty++;
             }
         }
 
+        // Add the element to the ordering for that set
+        // First check to see if adding this element will move this set from
+        // empty to non empty, if so, then reduce the number of non empties
+        if (ordering[s_i].end < ordering[s_i].start)
+            num_empty--;
+   
         // Make sure that there is somethin left to push before pushing
         // the next elemetn from S[s_i]
-        if (next[s_i] < set_sizes[s_i]) {
+        // s_dim is an inclusive range
+        if (next[s_i] <= s_dim[s_i].end) {
             priq_push(q, &set_ids[s_i], S[s_i][next[s_i]].start);
             next[s_i] += 1;
         }
 
-        // Check to see if adding this element causes an n-way
-        // intersection
-        int is_nway = 0;
-        // Check the orders before s_i
-        for (i = 0; i < s_i; i++)
-            if (ordering[i].end >= ordering[i].start)
-                is_nway += 1;
-        // Check the orders after s_i
-        for (i = s_i + 1; i < num_sets; i++)
-            if (ordering[i].end >= ordering[i].start)
-                is_nway += 1;
-
         // If all other orderings contain elements, than we have an n-way
         // intersection, print it
-        if (is_nway == num_sets - 1) {
+        //if (is_nway == num_sets - 1) {
+        //fprintf(stderr, "num_empty:%d\n", num_empty);
+        if (num_empty == 0) {
             struct int_list_list *r_head, *r_tail;
 
             *num_R += get_nway_sweep_list(num_sets,
-                                s_i,
-                                ordering,
-                                &r_head,
-                                &r_tail);
+                                          s_i,
+                                          ordering,
+                                          &r_head,
+                                          &r_tail);
 
             if (nways_head == NULL) {
                 nways_head = r_head;
@@ -662,17 +694,15 @@ void sweep(struct interval **S,
                 nways_tail = r_tail;
             }
         }
-
-        // Add the element to the ordering for that set
+         
         ordering[s_i].end+=1;
 
-        // check to see if we can stop scanning To stop scanning the last
-        // element in a set must have been moved out of context
-        for (i = 0; i < num_sets; i++) {
-            if (ordering[i].start >= set_sizes[i]) {
-                scan = 0;
-            }
-        }
+        // add this element to the in-context queue
+        //fprintf(stderr,"push:%llu\t%llu\n", S[s_i][ordering[s_i].end].start,
+                //S[s_i][ordering[s_i].end].end);
+        priq_push(c, &set_ids[s_i], S[s_i][ordering[s_i].end].end);
+
+
 
         // we can also stop scanning if there are no other intervals to add
         if (q->n == 1) {
@@ -680,23 +710,10 @@ void sweep(struct interval **S,
         }
     }
 
-    *R = nways_head;
+    *R_head = nways_head;
+    *R_tail = nways_tail;
 
     priq_free(q);
-#endif
-
-#ifdef IN_TIME_SPLIT
-    stop();
-    unsigned long int sweep_time = report();
-#endif
-
-#ifdef IN_TIME_SPLIT
-    printf("sweep:%lu\ttotal:%lu\n", sweep_time,sweep_time);
-#endif
-
-
-
-
 }
 //}}}
 
@@ -731,14 +748,16 @@ void sweep_subset(struct interval **S,
     for (i = 0; i < num_sets; i++)
         set_ids[i] = i;
 
-    pri_queue q = priq_new(0);
+    //pri_queue q = priq_new(0);
+    pri_queue q = priq_new(num_sets * 10);
     for (i = 0; i < num_sets; ++i) {
         priq_push(q, &set_ids[i], S[i][next[i]].start);
         next[i] += 1;
     }
 
     // use another priority queue to manage intervals leaving context
-    pri_queue c = priq_new(0);
+    //pri_queue c = priq_new(0);
+    pri_queue c = priq_new(num_sets * 10);
 
     int scan = 1;
     int num_empty = num_sets;
@@ -751,13 +770,8 @@ void sweep_subset(struct interval **S,
         int *s_i_p = priq_pop(q, &start_pos);
         int s_i = *s_i_p;
 
-        //fprintf(stderr, "s_i:%d\tstart_pos:%llu\n", s_i, start_pos);
-
         // keep removing elements from the queue until it is either empty or
         // the next element ends after the new element starts
-        //if (priq_top(c, &end_pos) != NULL)
-            //fprintf(stderr, "top end_pos:%llu\n", end_pos);
-
         while ( (priq_top(c, &end_pos) != NULL) &&
                 (end_pos < start_pos) ) {
 
@@ -779,38 +793,6 @@ void sweep_subset(struct interval **S,
         if (ordering[s_i].end < ordering[s_i].start)
             num_empty--;
    
-#if 0
-        // remove anything from the orderings that ends before start_pos
-        for (i = 0; i < num_sets; i++) {
-            int j;
-            for (j = ordering[i].start; j <= ordering[i].end; ++j) {
-                if (S[i][j].end < start_pos)  {
-                    ordering[i].start += 1;
-                }
-            }
-        }
-
-        // Check to see if adding this element causes an n-way
-        // intersection
-        int is_nway = 0;
-        // Check the orders before s_i
-        for (i = 0; i < s_i; i++)
-            if (ordering[i].end >= ordering[i].start)
-                is_nway += 1;
-        // Check the orders after s_i
-        for (i = s_i + 1; i < num_sets; i++)
-            if (ordering[i].end >= ordering[i].start)
-                is_nway += 1;
-
-        // check to see if we can stop scanning To stop scanning the last
-        // element in a set must have been moved out of context
-        for (i = 0; i < num_sets; i++) {
-            if (ordering[i].start > s_dim[i].end) {
-                scan = 0;
-            }
-        }
-#endif
-
         // Make sure that there is somethin left to push before pushing
         // the next elemetn from S[s_i]
         // s_dim is an inclusive range
@@ -827,10 +809,10 @@ void sweep_subset(struct interval **S,
             struct int_list_list *r_head, *r_tail;
 
             *num_R += get_nway_sweep_list(num_sets,
-                                s_i,
-                                ordering,
-                                &r_head,
-                                &r_tail);
+                                          s_i,
+                                          ordering,
+                                          &r_head,
+                                          &r_tail);
 
             if (nways_head == NULL) {
                 nways_head = r_head;
@@ -1095,30 +1077,6 @@ void splitn_sweep(struct interval **S,
                   2,
                   10);
 
-    /*
-    struct split_search_node_list *curr = leaf_head;
-    struct int_list_list *R_head=NULL, *R_tail=NULL;
-    while (curr != NULL) {
-        struct split_search_node *node = curr->node;
-        struct int_list_list *curr_head, *curr_tail;
-
-        int num_R;
-
-        sweep_subset(S, num_sets, node->s_dim, &curr_head, &curr_tail, &num_R);
-
-        if (num_R > 0) {
-            if (R_head == NULL) {
-                R_head = curr_head;
-                R_tail = curr_tail;
-            } else {
-                R_tail->next = curr_head;
-                R_tail = curr_tail;
-            }
-        }
-
-        curr = curr->next;
-    }
-    */
 #ifdef IN_TIME_SPLIT
     stop();
     unsigned long int sweep_sets_time = report();
@@ -1269,7 +1227,7 @@ void split_psweep(struct interval **S,
 }
 //}}}
 
-//{{{void psweep_centers(struct interval **S,
+//{{{void psweep_subset(struct interval **S,
 void psweep_subset(struct interval **S,
                    int num_sets,
                    int *set_sizes, 
@@ -1539,6 +1497,7 @@ void psweep_centers(struct interval **S,
     int step_size = (set_sizes[0] + num_threads - 1) / num_threads;
     int i, rc;
 
+    //start();
     for (i = 0; i < num_threads; ++i) {
         thread_args[i].S = S;
         thread_args[i].num_sets = num_sets;
@@ -1558,14 +1517,20 @@ void psweep_centers(struct interval **S,
 
         assert( 0 == rc);
     }
+    stop();
+    //printf("%lu\n", report());
 
+    //start();
     for (i = 0; i < num_threads; ++i) {
         rc = pthread_join(threads[i], NULL);
         assert( 0 == rc);
     }
+    //stop();
+    //printf("%lu\n", report());
 
     struct int_list_list *R_head=NULL, *R_tail=NULL;
 
+    //start();
     for (i = 0; i < num_threads; ++i) {
         if (thread_args[i].R_head != NULL) {
             if (R_head == NULL) {
@@ -1577,6 +1542,8 @@ void psweep_centers(struct interval **S,
             }
         }
     }
+    //stop();
+    //printf("%lu\n", report());
 
     *R = R_head;
 }
@@ -1591,16 +1558,31 @@ void *run_sweep_center(void *arg)
     p->R_tail = NULL;
 
     int i;
+    struct timeval t = in();
+    struct timeval tt;
+    unsigned long int max_time = 0;
+    unsigned long int min_time = 10000000;
+    int hit = 0;
     for (i = p->start; i < p->end; ++i) {
         if (p->empties[i] == 0) {
+            hit++;
             int num_R;
             struct int_list_list *curr_head, *curr_tail;
+
+            tt=in();
+
             sweep_subset(p->S,
                          p->num_sets,
                          &(p->centers[i*p->num_sets]),
                          &curr_head,
                          &curr_tail,
                          &num_R);
+
+            unsigned long int __time = out(tt);
+
+            max_time = MAX(max_time,__time);
+            min_time = MIN(min_time,__time);
+
             if (num_R > 0) {
                 if (p->R_head == NULL) {
                     p->R_head = curr_head;
@@ -1612,6 +1594,15 @@ void *run_sweep_center(void *arg)
             }
         }
     }
+    unsigned long int _time= out(t);
+    fprintf(stderr,
+            "\ttotal_time:%lu"
+            "\tmax_step:%llu"
+            "\tmin_step:%llu"
+            "\tstart:%d"
+            "\tend:%d"
+            "\tsteps:%d\n",
+            _time, max_time, min_time,p->start, p->end,hit);
 }
 //}}}
 
