@@ -34,7 +34,9 @@ int parse_args(int argc,
                 int **set_sizes,
                 int *num_sets,
                 int *to_print,
-                int *num_threads)
+                int *num_threads,
+                int *step_size,
+                int *num_splits)
 {
     char c;
 
@@ -48,9 +50,10 @@ int parse_args(int argc,
     int range = 0;
     *to_print = 0;
     *num_threads = 1;
+    *step_size = 1;
     int num_inters = 0;
 
-    while ( (c = getopt(argc, argv, "f:n:i:s:l:p:r:t:I:b:g:") ) != -1) 
+    while ( (c = getopt(argc, argv, "f:n:i:s:l:p:r:t:I:b:g:S:x:") ) != -1) 
         switch(c) {
             case 'g':
                 genome_file = optarg;
@@ -64,8 +67,14 @@ int parse_args(int argc,
             case 'I':
                 num_inters = atoi(optarg);
                 break;
+            case 'x':
+                *step_size = atoi(optarg);
+                break;
             case 't':
                 *num_threads = atoi(optarg);
+                break;
+            case 'S':
+                *num_splits = atoi(optarg);
                 break;
             case 'n':
                 *num_sets = atoi(optarg);

@@ -32,7 +32,9 @@ int parse_args(int argc,
                int **set_sizes,
                int *num_sets,
                int *to_print,
-               int *num_threads);
+               int *num_threads,
+               int *step_size,
+               int *num_splits);
 
 void usage(char *prog);
 

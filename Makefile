@@ -2,11 +2,13 @@ CC=gcc
 SRC_DIR=src
 OBJ_DIR=obj
 BIN_DIR=bin
+#DFLAGS=-D SPLIT_SIZES
 #DFLAGS=-D DEBUGITTER
 DFLAGS=-D IN_TIME_SPLIT
 #DFLAGS=-D SPLIT_DEBUG
 #CFLAGS=-I. -lpthread -g -pg
 CFLAGS=-O3 
+#CFLAGS=-g
 DEPS = 
 OBJ = $(OBJ_DIR)/nway.o \
 	$(OBJ_DIR)/pq.o \
@@ -17,6 +19,7 @@ EXECS=split \
 	split_o \
 	psplit_o \
 	split_sweep \
+	splitn_sweep \
 	sweep \
 	split_centers \
 	psplit_centers \
@@ -55,6 +58,9 @@ psplit_o: $(OBJ_DIR)/psplit_o.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 split_sweep: $(OBJ_DIR)/split_sweep.o $(OBJ)
+	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
+
+splitn_sweep: $(OBJ_DIR)/splitn_sweep.o $(OBJ)
 	gcc -o $(BIN_DIR)/$@ $^ $(CFLAGS)
 
 split_psweep: $(OBJ_DIR)/split_psweep.o $(OBJ)

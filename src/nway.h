@@ -362,121 +362,21 @@ void psplit_sets_o (struct interval **S,
 
 void *pone_split_o(void *ptr);
 
-#if 0
-void print_nway_common_interval(struct int_list_list *R,
-                                struct interval **S);
-void print_nway_intervals (struct int_list_list *R,
-                           struct interval **S);
-void print_nway_indicies(struct int_list_list *R,
-                         struct interval **S);
-void nway_sweep(int num_sets,
-		int *set_sizes,
-		struct interval **S,
-                int *num_nways,
-		int to_print);
+void splitn_sweep(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R,
+                 int num_splits,
+                 int num_threads,
+                 int step_size);
 
-
-#endif
-#if 0
-void get_common_set(struct interval **S,
-                    int *set_sizes,
-                    struct int_list_list *R,
-                    int num_R,
-                    struct tag *T1,
-                    struct tag *T2,
-                    struct tag **newT,
-                    struct interval **X);
-
-void read_interval_sets(char *file_name,
-                        struct interval ***S,
-                        int **set_sizes,
-                        int *num_sets);
-
-void gen_simple_sets(struct interval ***S,
-                     int **set_sizes,
-                     int num_sets,
-                     int num_elements,
-                     int len,
-                     int seed);
-
-int parse_args(int argc,
-                char **argv,
-                struct interval ***S,
-                int **set_sizes,
-                int *num_sets,
-                int *to_print,
-                int *num_threads);
-
-void usage(char *prog);
-
-void gen_simple_sets_in_range(struct interval ***S,
-                     int **set_sizes,
-                     int num_sets,
-                     int num_elements,
-                     int len,
-                     int range,
-                     int seed);
-
-void gen_sets_in_range_with_num_inter(struct interval ***S,
-                                      int **set_sizes,
-                                      int num_sets,
-                                      int num_elements,
-                                      int len,
-                                      int range,
-                                      int seed,
-                                      int num_i);
-#endif
-#if 0
-int point_overlap_test(int start,
-                       int end,
-                       int *points,
-                       int num_points,
-                       int len);
-void print_intersect_tree_node(struct intersect_tree *t);
-void print_nway( int num_sets,
-                 int s_i,
-                 int start_pos,
-                 struct pair *ordering);
-#endif
-#if 0
-struct interval **rand_flat_sets(int num_sets,
-				 int num_intervals,
-				 int max_interval_size,
-				 int max_gap_size,
-				 int **set_sizes);
-
-struct interval **rand_set_flat_sets(int num_sets,
-				     int num_intervals,
-                                     int interval_size,
-                                     int domain_size,
-                                     int num_nways,
-                                     int **set_sizes);
-
-int count_nway(int num_sets,
-               int s_i,
-               struct pair *ordering);
-
-void nway_step(int num_sets,
-	       int *set_sizes,
-	       struct interval **S,
-	       int to_print);
-#endif
-#if 0
-void psplit(struct interval **S,
-           int *set_sizes,
-           int num_sets,
-           struct int_list_list **R,
-           int num_threads);
-#endif
-#if 0
-void print_interval_sets(struct interval **S,
-                         int num_sets,
-                         int *set_sizes);
-
-void print_interval_set(struct interval *S,
-                         int set_size);
+void l1_n_split_sets_o (struct interval **S,
+                        int *set_sizes,
+                        struct split_search_node_list **to_clear_head,
+                        struct split_search_node_list **to_clear_tail,
+                        struct split_search_node_list **leaf_head,
+                        struct split_search_node_list **leaf_tail,
+                        int num_sets,
+                        int num_splits);
 
 #endif
-
-#endif
-

@@ -39,7 +39,14 @@ int main(int argc, char **argv)
 #ifndef IN_TIME_SPLIT
     start();
 #endif
-    split_sweep(S, set_sizes, num_sets, &R);
+    splitn_sweep(S,
+                 set_sizes,
+                 num_sets,
+                 &R,
+                 num_splits,
+                 num_threads,
+                 step_size);
+
 #ifndef IN_TIME_SPLIT
     stop();
     printf("%lu\n", report());

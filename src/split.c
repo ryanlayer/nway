@@ -13,6 +13,8 @@ int main(int argc, char **argv)
     int to_print;
     int num_sets;
     int num_threads;
+    int step_size;
+    int num_splits;
 
 
     int r = parse_args(argc,
@@ -21,8 +23,9 @@ int main(int argc, char **argv)
                        &set_sizes,
                        &num_sets,
                        &to_print,
-                       &num_threads);
-
+                       &num_threads,
+                       &step_size,
+                       &num_splits);
 
     struct int_list_list *R;
     R = NULL;

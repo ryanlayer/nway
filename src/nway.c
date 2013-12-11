@@ -110,10 +110,8 @@ void split_search_o(struct split_search_node *query,
                   struct split_search_node *right)
 {
 
-    // s_dim[0] corresponds to S_dim.start
     struct interval *a = query->S[query->S_dim.start];
     struct pair a_dim;
-    //a_dim = query->s_dim[0];
     a_dim = query->s_dim[query->S_dim.start];
     int a_mid = (a_dim.end+1 + a_dim.start-1)/2;
     struct interval root = a[a_mid];
@@ -141,15 +139,11 @@ void split_search_o(struct split_search_node *query,
      */
     left->S = query->S;
     left->S_dim = query->S_dim;
-    //left->parent = query->parent;
     left->s_dim = (struct pair *) malloc (num_sets*sizeof(struct pair));
     memcpy(left->s_dim, query->s_dim, num_sets*sizeof(struct pair));
-    //left->s_dim[0].start = a_dim.start;
-    //left->s_dim[0].end = a_mid - 1;
     left->s_dim[query->S_dim.start].start = a_dim.start;
     left->s_dim[query->S_dim.start].end = a_mid - 1;
 
-    //left->has_empty = left->s_dim[0].start > left->s_dim[0].end;
     left->has_empty = left->s_dim[query->S_dim.start].start > 
                       left->s_dim[query->S_dim.start].end;
 
@@ -157,32 +151,21 @@ void split_search_o(struct split_search_node *query,
     right->S_dim = query->S_dim;
     right->s_dim = (struct pair *) malloc (num_sets*sizeof(struct pair));
     memcpy(right->s_dim, query->s_dim, num_sets*sizeof(struct pair));
-    //right->parent = query->parent;
-    //right->s_dim[0].start = a_mid + 1;
-    //right->s_dim[0].end = a_dim.end;
     right->s_dim[query->S_dim.start].start = a_mid + 1;
     right->s_dim[query->S_dim.start].end = a_dim.end;
-
-    //right->has_empty = right->s_dim[0].start > right->s_dim[0].end;
     right->has_empty = right->s_dim[query->S_dim.start].start > 
                        right->s_dim[query->S_dim.start].end;
 
     center->S = query->S;
     center->S_dim.start = query->S_dim.start + 1;
     center->S_dim.end = query->S_dim.end;
-    //center->s_dim = (struct pair *) malloc 
-            //((num_sets-1)*sizeof(struct pair));
-    //center->s_dim = (struct pair *)malloc((num_sets-1)*sizeof(struct pair));
     center->s_dim = (struct pair *)malloc((num_sets)*sizeof(struct pair));
     memcpy(center->s_dim, query->s_dim, num_sets*sizeof(struct pair));
     center->s_dim[query->S_dim.start].start = a_mid;
     center->s_dim[query->S_dim.start].end = a_mid;
-    //center->parent = query;
 
     int i;
     for (i = query->S_dim.start + 1; i <= query->S_dim.end; ++i) {
-    //for (i = 1; i < query->S_dim.end - query->S_dim.start + 1; ++i) {
-        //struct interval *s = query->S[i + query->S_dim.start];
         struct interval *s = query->S[i];
         struct pair s_dim = query->s_dim[i];
 
@@ -220,8 +203,6 @@ void split_search_o(struct split_search_node *query,
 #ifdef SPLIT_DEBUG
         if (i != query->S_dim.start + 1)
             fprintf(stderr,"\t");
-        //fprintf(stderr, "%d%d%d",
-                //left_is_empty,center_is_empty,right_is_empty);
 
         fprintf(stderr, 
                 "%"PRId64",%"PRId64" "
@@ -234,10 +215,6 @@ void split_search_o(struct split_search_node *query,
                     s_center.end,
                     s_right.start,
                     s_right.end);
-
-
-
-
 #endif
     }
 
@@ -899,12 +876,12 @@ void split_o(struct interval **S,
     start();
 #endif
     split_sets_o(S,
-               set_sizes,
-               &to_clear_head,
-               &to_clear_tail,
-               &leaf_head,
-               &leaf_tail,
-               num_sets);
+                 set_sizes,
+                 &to_clear_head,
+                 &to_clear_tail,
+                 &leaf_head,
+                 &leaf_tail,
+                 num_sets);
 
 #ifdef IN_TIME_SPLIT
     stop();
@@ -1075,6 +1052,94 @@ void split(struct interval **S,
 }
 //}}}
 
+//{{{ void splitn_sweep(struct interval **S,
+void splitn_sweep(struct interval **S,
+                 int *set_sizes,
+                 int num_sets,
+                 struct int_list_list **R,
+                 int num_splits,
+                 int num_threads,
+                 int step_size)
+{
+    struct split_search_node_list *leaf_head, *leaf_tail;
+    struct split_search_node_list *to_clear_head, *to_clear_tail;
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
+    l1_n_split_sets_o(S,
+                      set_sizes,
+                     &to_clear_head,
+                     &to_clear_tail,
+                     &leaf_head,
+                     &leaf_tail,
+                     num_sets,
+                     num_splits);
+
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int split_sets_time = report();
+#endif
+
+
+#ifdef IN_TIME_SPLIT
+    start();
+#endif
+
+    psweep_subset(S,
+                  num_sets,
+                  set_sizes,
+                  leaf_head,
+                  R,
+                  2,
+                  10);
+
+    /*
+    struct split_search_node_list *curr = leaf_head;
+    struct int_list_list *R_head=NULL, *R_tail=NULL;
+    while (curr != NULL) {
+        struct split_search_node *node = curr->node;
+        struct int_list_list *curr_head, *curr_tail;
+
+        int num_R;
+
+        sweep_subset(S, num_sets, node->s_dim, &curr_head, &curr_tail, &num_R);
+
+        if (num_R > 0) {
+            if (R_head == NULL) {
+                R_head = curr_head;
+                R_tail = curr_tail;
+            } else {
+                R_tail->next = curr_head;
+                R_tail = curr_tail;
+            }
+        }
+
+        curr = curr->next;
+    }
+    */
+#ifdef IN_TIME_SPLIT
+    stop();
+    unsigned long int sweep_sets_time = report();
+#endif
+
+#ifdef IN_TIME_SPLIT
+    unsigned long int total_time = split_sets_time + 
+                                   sweep_sets_time;
+    printf("split:%lu\tsweep:%lu\ttotal:%lu\t"
+           "%f\t%f\n", split_sets_time,
+                           sweep_sets_time,
+                           total_time,
+                   ( ((double)split_sets_time) / ((double)total_time)),
+                   ( ((double)sweep_sets_time) / ((double)total_time)));
+    
+
+    //*R = R_head;
+#endif
+}
+//}}}
+
 //{{{ void split_sweep(struct interval **S,
 void split_sweep(struct interval **S,
                  int *set_sizes,
@@ -1227,8 +1292,6 @@ void psweep_subset(struct interval **S,
         thread_args[i].R_head = NULL;
         thread_args[i].R_tail = NULL;
 
-        //printf("%d %d %d\n", i, thread_args[i].start, thread_args[i].end);
-
         rc = pthread_create(&threads[i],
                             NULL,
                             run_sweep_subset,
@@ -1273,6 +1336,7 @@ void *run_sweep_subset(void *arg)
     struct split_search_node_list *curr = p->subset_head;
 
     while ( (curr != NULL) && (node_id < (p->id*p->step_size)) ){
+        //fprintf(stderr, "skip\n");
         curr = curr->next;
         node_id += 1;
     }
@@ -1280,37 +1344,23 @@ void *run_sweep_subset(void *arg)
     // sweep the current regions, then move to the next
     int num_to_sweep = p->step_size, num_to_skip, num_R;
 
-    num_to_skip = (p->num_threads - 1) * p->step_size;
-
-    /*
-    fprintf(stderr,"id:%d\tto_skip:%d\tstep:%d\t"
-            "num_to_sweep:%d\tnum_to_skip:%d\n",
-            p->id,
-            p->id*p->step_size,
-            p->step_size,
-            num_to_sweep,
-            num_to_skip);
-    */
-
+    //num_to_skip = (p->num_threads - 1) * p->step_size;
+    
     num_to_skip = 0;
 
     while (curr != NULL) {
 
-        if (num_to_skip > 0) {
-            //fprintf(stderr,"id:%d\tto_skip:%d\n",p->id, num_to_skip);
+
+        if (num_to_skip == 0) {
             num_to_skip -= 1;
-        } else if (num_to_skip == 0) {
             num_to_sweep = p->step_size;
-            num_to_skip = -1;
+        } else if (num_to_skip > 0) {
+            num_to_skip -= 1;
         }
 
         //sweep the current region
         if (num_to_sweep > 0) {
-            //fprintf(stderr,"id:%d\tto_sweep:%d\t%p\n",
-                        //p->id,
-                        //num_to_sweep,
-                        //curr);
-
+            //fprintf(stderr, "sweep\n");
             struct int_list_list *curr_head, *curr_tail;
             sweep_subset(p->S,
                          p->num_sets,
@@ -1329,11 +1379,12 @@ void *run_sweep_subset(void *arg)
             }
 
             num_to_sweep -= 1;
-        }  else if (num_to_sweep == 0) {
+        }  
+        
+        if (num_to_sweep == 0) {
             num_to_skip = (p->num_threads - 1) * p->step_size;
             num_to_sweep = -1;
         }
-
         curr = curr->next;
     }
 }
@@ -1659,9 +1710,6 @@ void l1_split_sets_o (struct interval **S,
         (struct split_search_node *) malloc (
         sizeof(struct split_search_node));
 
-    //add_to_clear_list(to_clear_head, to_clear_tail, root_node);
-
-    //root_node->parent = NULL;
     root_node->S = S;
     root_node->S_dim.start = 0;
     root_node->S_dim.end = num_sets - 1;
@@ -1684,54 +1732,28 @@ void l1_split_sets_o (struct interval **S,
     *leaf_head = NULL;
 
     struct split_search_node *curr = head;
+
     while (curr != NULL) {
-        struct split_search_node *left = 
-                (struct split_search_node *) malloc (
-                sizeof(struct split_search_node));
-        left->next = NULL;
-        left->has_empty = 0;
 
-        struct split_search_node *center =
-                (struct split_search_node *) malloc (
-                sizeof(struct split_search_node));
-        center->next = NULL;
-        center->has_empty = 0;
+        struct split_search_node *left = NULL, 
+                                 *right = NULL, 
+                                 *center = NULL;
+        struct split_search_node_list *leaf = NULL;
 
-        struct split_search_node *right =
-                (struct split_search_node *) malloc (
-                sizeof(struct split_search_node));
-        right->next = NULL;
-        right->has_empty = 0;
+        one_split_o(curr, &left, &right, &center, &leaf);
 
-        split_search_o(curr, left, center, right);
-
-        /* 
-         * For any of the splits that have all non-zero subs sets,
-         * add the split onto the queue to be re-split
-         */
-        if (left->has_empty == 0) {
+        if (left != NULL) {
             tail->next = left;
             tail = left;
-            //add_to_clear_list(to_clear_head, to_clear_tail, left);
-        } else {
-            free_split_search_node(left);
         }
 
-        if (right->has_empty == 0) {
+        if (right != NULL) {
             tail->next = right;
             tail = right;
-            //add_to_clear_list(to_clear_head, to_clear_tail, right);
-        } else {
-            free_split_search_node(right);
         }
 
-        if ( center->has_empty == 0) {
-            /*
-            if (center->S_dim.start < center->S_dim.end) {
-                tail->next = center;
-                tail = center;
-            } else {
-            */
+
+        if (center != NULL) {
             struct split_search_node_list *next_leaf;
             next_leaf = (struct split_search_node_list *)
                     malloc (sizeof(struct split_search_node_list));
@@ -1745,15 +1767,116 @@ void l1_split_sets_o (struct interval **S,
                 (*leaf_tail)->next = next_leaf;
                 (*leaf_tail) = next_leaf;
             }
-            //}
-        } else {
-            free_split_search_node(center);
         }
+
 
         struct split_search_node *next = curr->next;
         free_split_search_node(curr);
         curr = next;
     }
+}
+//}}}
+
+//{{{void l1_n_split_sets_o (struct interval **S,
+void l1_n_split_sets_o (struct interval **S,
+                        int *set_sizes,
+                        struct split_search_node_list **to_clear_head,
+                        struct split_search_node_list **to_clear_tail,
+                        struct split_search_node_list **leaf_head,
+                        struct split_search_node_list **leaf_tail,
+                        int num_sets,
+                        int num_splits)
+{
+
+    struct split_search_node *root_node = 
+        (struct split_search_node *) malloc (
+        sizeof(struct split_search_node));
+
+    root_node->S = S;
+    root_node->S_dim.start = 0;
+    root_node->S_dim.end = num_sets - 1;
+    root_node->s_dim = (struct pair *) 
+        malloc (num_sets * sizeof(struct pair));
+
+    int i;
+    for (i = 0; i < num_sets; ++i) {
+        root_node->s_dim[i].start = 0;
+        root_node->s_dim[i].end = set_sizes[i] - 1;
+    }
+
+    root_node->has_empty = 0;
+    root_node->next = NULL;
+
+    struct split_search_node *head, *tail;
+    head = root_node;
+    tail = root_node;
+    
+    *leaf_head = NULL;
+
+    struct split_search_node *curr = head;
+
+    int splitted = 0;
+    while (curr != NULL) {
+
+        if (num_splits > splitted) {
+            struct split_search_node *left = NULL, 
+                                     *right = NULL, 
+                                     *center = NULL;
+            struct split_search_node_list *leaf = NULL;
+
+            one_split_o(curr, &left, &right, &center, &leaf);
+
+            if (left != NULL) {
+                tail->next = left;
+                tail = left;
+            }
+
+            if (right != NULL) {
+                tail->next = right;
+                tail = right;
+            }
+
+
+            if (center != NULL) {
+                struct split_search_node_list *next_leaf;
+                next_leaf = (struct split_search_node_list *)
+                        malloc (sizeof(struct split_search_node_list));
+                next_leaf->node = center;
+                next_leaf->next = NULL;
+
+                if ((*leaf_head) == NULL) {
+                    (*leaf_head) = next_leaf;
+                    (*leaf_tail) = *leaf_head;
+                } else {
+                    (*leaf_tail)->next = next_leaf;
+                    (*leaf_tail) = next_leaf;
+                }
+            }
+
+
+            struct split_search_node *next = curr->next;
+            free_split_search_node(curr);
+            curr = next;
+            splitted += 1;         
+        } else {
+            splitted += 1;         
+            struct split_search_node_list *next_leaf;
+            next_leaf = (struct split_search_node_list *)
+                    malloc (sizeof(struct split_search_node_list));
+            next_leaf->node = curr;
+            next_leaf->next = NULL;
+
+            if ((*leaf_head) == NULL) {
+                (*leaf_head) = next_leaf;
+                (*leaf_tail) = *leaf_head;
+            } else {
+                (*leaf_tail)->next = next_leaf;
+                (*leaf_tail) = next_leaf;
+            }
+            curr = curr->next;
+        }
+    }
+    fprintf(stderr, "%d\n", splitted);
 }
 //}}}
 
@@ -1998,11 +2121,13 @@ void one_split_o(struct split_search_node *curr,
      * add the split onto the queue to be re-split
      */
     if ((*left)->has_empty != 0) {
+        //printf("empty\n");
         free_split_search_node(*left);
         *left = NULL;
     }
 
     if ((*right)->has_empty != 0) {
+        //printf("empty\n");
         free_split_search_node(*right);
         *right = NULL;
     }
@@ -2067,6 +2192,43 @@ void split_sets_o(struct interval **S,
 
     struct split_search_node *curr = head;
     while (curr != NULL) {
+
+
+#ifdef SPLIT_SIZES
+        int i;
+        int64_t min_sdim = LLONG_MAX, max_sdim = -1;
+        int64_t min_l = LLONG_MAX, max_l = -1;
+        double min_d = (double) LLONG_MAX, max_d = -1;
+        for (i = 0; i < num_sets; ++i) {
+            min_sdim = MIN(min_sdim, 
+                    curr->s_dim[i].end - curr->s_dim[i].start + 1);
+            max_sdim = MAX(max_sdim, 
+                    curr->s_dim[i].end - curr->s_dim[i].start + 1);
+
+            min_l = MIN(min_l, 
+                        S[i][curr->s_dim[i].end].end - 
+                        S[i][curr->s_dim[i].start].start);
+            max_l = MAX(max_l, 
+                        S[i][curr->s_dim[i].end].end - 
+                        S[i][curr->s_dim[i].start].start);
+
+            min_d = MIN(min_d, 
+                        ( (double)(curr->s_dim[i].end - 
+                                   curr->s_dim[i].start + 1)) /
+                        ( (double) (S[i][curr->s_dim[i].end].end - 
+                                    S[i][curr->s_dim[i].start].start)));
+            max_d = MAX(max_d, 
+                        ( (double)(curr->s_dim[i].end - 
+                                   curr->s_dim[i].start + 1)) /
+                        ( (double) (S[i][curr->s_dim[i].end].end - 
+                                    S[i][curr->s_dim[i].start].start)));
+        }
+        printf("%llu\tmin_n:%llu\tmax_n:%llu\t"
+               "min_l:%llu\tmax_l:%llu\tmin_d:%f\tmax_d:%f\n",
+               curr->S_dim.start,min_sdim, max_sdim, min_l, max_l,
+               min_d,max_d);
+#endif
+
 
         struct split_search_node *left = NULL, 
                                  *right = NULL, 
@@ -2393,6 +2555,7 @@ void add_to_clear_list(struct split_search_node_list **to_clear_head,
 }
 //}}}
 
+//{{{
 #if 0
 //{{{ void psplit(struct interval **S,
 void psplit(struct interval **S,
@@ -3094,7 +3257,8 @@ int parse_args(int argc,
                 int **set_sizes,
                 int *num_sets,
                 int *to_print,
-                int *num_threads)
+                int *num_threads,
+                int *num_splits)
 {
     char c;
 
@@ -3108,10 +3272,13 @@ int parse_args(int argc,
     *num_threads = 1;
     int num_inters = 0;
 
-    while ( (c = getopt(argc, argv, "f:n:i:s:l:p:r:t:I:") ) != -1) 
+    while ( (c = getopt(argc, argv, "f:n:i:s:l:p:r:t:I:S:") ) != -1) 
         switch(c) {
             case 'f':
                 file_name = optarg;
+                break;
+            case 'S':
+                *num_splits = atoi(optarg);
                 break;
             case 'I':
                 num_inters = atoi(optarg);
@@ -4003,3 +4170,4 @@ int count_nway(int num_sets,
 }
 //}}}
 #endif
+//}}}
