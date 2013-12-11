@@ -1,4 +1,5 @@
 #include "threadpool.h"
+#include "mslab.h"
 #include <pthread.h>
 #include <stdint.h>
 #ifndef __NWAY_H__
@@ -379,4 +380,20 @@ void l1_n_split_sets_o (struct interval **S,
                         int num_sets,
                         int num_splits);
 
+void sweep_subset_mem(struct interval **S,
+                      int num_sets,
+                      struct pair *s_dim,
+                      struct int_list_list **R_head,
+                      struct int_list_list **R_tail,
+                      int *num_R,
+                      struct mslab *int_list_list_slab,
+                      struct mslab *int_64_t_slab);
+
+int get_nway_sweep_list_mem(int num_sets,
+                            int s_i,
+                            struct pair *ordering,
+                            struct int_list_list **r_head,
+                            struct int_list_list **r_tail,
+                            struct mslab *int_list_list_slab,
+                            struct mslab *int_64_t_slab);
 #endif

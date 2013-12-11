@@ -14,6 +14,7 @@ OBJ = $(OBJ_DIR)/nway.o \
 	$(OBJ_DIR)/pq.o \
 	$(OBJ_DIR)/timer.o \
 	$(OBJ_DIR)/threadpool.o \
+	$(OBJ_DIR)/mslab.o \
 	$(OBJ_DIR)/utils.o 
 EXECS=split \
 	split_o \

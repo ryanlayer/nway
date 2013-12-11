@@ -6,6 +6,7 @@
 #include "pq.h"
 #include "nway.h"
 #include "timer.h"
+#include "mslab.h"
 #include "threadpool.h"
 #include <pthread.h>
 #include <sys/types.h>
@@ -551,6 +552,118 @@ int get_nway_sweep_list(int num_sets,
 }
 //}}}
 
+//{{{ int get_nway_sweep_list( int num_sets,
+int get_nway_sweep_list_mem(int num_sets,
+                            int s_i,
+                            struct pair *ordering,
+                            struct int_list_list **r_head,
+                            struct int_list_list **r_tail,
+                            struct mslab *int_list_list_slab,
+                            struct mslab *int_64_t_slab)
+{
+    int N = 1;
+    // Create the first nway list
+    /*
+    struct int_list_list *head = (struct int_list_list *)
+            malloc(sizeof(struct int_list_list));
+    */
+    struct int_list_list *head = (struct int_list_list *) 
+            mslab_get(int_list_list_slab);
+
+
+    struct int_list_list *tail = head;
+
+    head->size = num_sets;
+    //head->list = (int64_t *) malloc(head->size * sizeof(int64_t));
+    head->list = (int64_t *) mslab_get(int_64_t_slab);
+    head->next = NULL;
+
+    // Create nways from the orders before s_i
+    int i;
+    for (i = 0; i < num_sets; i++) {
+
+        if (i == s_i) {
+            // Add the new item to the list
+            struct int_list_list *curr = head;
+            while (curr != NULL) {
+                curr->list[s_i] = ordering[s_i].end + 1;
+                curr = curr->next;
+            }
+        } else { 
+            // set the first item in the ordering
+            struct int_list_list *curr = head;
+            while (curr != NULL) {
+                curr->list[i] = ordering[i].start;
+                curr = curr->next;
+            }
+
+            // if there is more than one element in the ordering, then we
+            // need to make copies of the nway lists up to this point
+            // and set the values
+            struct int_list_list *copy_head, *copy_tail;
+            copy_head = NULL;
+
+            int j;
+            // make copies
+            for (j = ordering[i].start + 1; j <= ordering[i].end; ++j) {
+                N+=1;
+                struct int_list_list *curr = head;
+                while (curr != NULL) {
+                    /*
+                    struct int_list_list *nway_copy = 
+                            (struct int_list_list *)
+                            malloc(sizeof(struct int_list_list));
+                    */
+                    struct int_list_list *nway_copy = (struct int_list_list *)
+                            mslab_get(int_list_list_slab);
+
+
+                    nway_copy->size = num_sets;
+                    /*
+                    nway_copy->list = (int64_t *) 
+                            malloc(head->size * sizeof(int64_t));
+                    */
+                    nway_copy->list = (int64_t *) 
+                            mslab_get(int_64_t_slab);
+
+                    nway_copy->next = NULL;
+
+                    //copy elements from the current nway over
+                    memcpy(nway_copy->list,
+                           curr->list,
+                           num_sets*sizeof(int));
+
+                    nway_copy->list[i] = j;
+
+
+                    if (copy_head == NULL) {
+                        copy_head = nway_copy;
+                        copy_tail = nway_copy;
+                    } else {
+                        copy_tail->next = nway_copy;
+                        copy_tail = nway_copy;
+                    }
+
+                    curr = curr->next;
+                }
+
+            }
+
+            // atach copies to the list
+            if (copy_head != NULL) {
+                tail->next = copy_head;
+                tail = copy_tail;
+            }
+        }
+    }
+
+    *r_head = head;
+    *r_tail = tail;
+
+    return N;
+}
+//}}}
+
 //{{{ void sweep(struct interval **S,
 void sweep(struct interval **S,
            int *set_sizes,
@@ -589,13 +702,15 @@ void sweep(struct interval **S,
 }
 //}}}
 
-//{{{ void sweep_subset(struct interval **S,
+//{{{ void sweep_subset_mem(struct interval **S,
 void sweep_subset_mem(struct interval **S,
                       int num_sets,
                       struct pair *s_dim,
                       struct int_list_list **R_head,
                       struct int_list_list **R_tail,
-                      int *num_R)
+                      int *num_R,
+                      struct mslab *int_list_list_slab,
+                      struct mslab *int_64_t_slab)
 {
     *num_R = 0;
 
@@ -680,11 +795,14 @@ void sweep_subset_mem(struct interval **S,
         if (num_empty == 0) {
             struct int_list_list *r_head, *r_tail;
 
-            *num_R += get_nway_sweep_list(num_sets,
-                                          s_i,
-                                          ordering,
-                                          &r_head,
-                                          &r_tail);
+            *num_R += get_nway_sweep_list_mem(num_sets,
+                                              s_i,
+                                              ordering,
+                                              &r_head,
+                                              &r_tail,
+                                              int_list_list_slab,
+                                              int_64_t_slab);
+
 
             if (nways_head == NULL) {
                 nways_head = r_head;
@@ -1286,6 +1404,12 @@ void *run_sweep_subset(void *arg)
 {
     struct run_sweep_subset_args *p = ((struct run_sweep_subset_args *) arg);
 
+    struct mslab *int_list_list_slab = 
+            mslab_init(sizeof(struct int_list_list), 1000);
+
+    struct mslab *int_64_t_slab = 
+            mslab_init(sizeof(int64_t) * p->num_sets, 1000);
+
     p->R_head = NULL;
     p->R_tail = NULL;
 
@@ -1320,12 +1444,15 @@ void *run_sweep_subset(void *arg)
         if (num_to_sweep > 0) {
             //fprintf(stderr, "sweep\n");
             struct int_list_list *curr_head, *curr_tail;
-            sweep_subset(p->S,
-                         p->num_sets,
-                         curr->node->s_dim,
-                         &curr_head,
-                         &curr_tail,
-                         &num_R);
+            sweep_subset_mem(p->S,
+                             p->num_sets,
+                             curr->node->s_dim,
+                             &curr_head,
+                             &curr_tail,
+                             &num_R,
+                             int_list_list_slab,
+                             int_64_t_slab);
+
             if (num_R > 0) {
                 if (p->R_head == NULL) {
                     p->R_head = curr_head;
@@ -1597,8 +1724,8 @@ void *run_sweep_center(void *arg)
     unsigned long int _time= out(t);
     fprintf(stderr,
             "\ttotal_time:%lu"
-            "\tmax_step:%llu"
-            "\tmin_step:%llu"
+            "\tmax_step:%lu"
+            "\tmin_step:%lu"
             "\tstart:%d"
             "\tend:%d"
             "\tsteps:%d\n",
