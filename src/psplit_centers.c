@@ -54,7 +54,7 @@ int main(int argc, char **argv)
         print_nway_common_interval(R, S);
 
 
-    free_int_list_list(R);
+    //free_int_list_list(R);
 
     int i;
     for (i = 0; i < num_sets; i++) 

@@ -45,9 +45,11 @@ int main(int argc, char **argv)
     if (to_print == 3)
         print_nway_common_interval(R, S);
 
+    /*
     free_int_list_list(R);
 
     int i;
     for (i = 0; i < num_sets; i++) 
         free(S[i]);
+    */
 }

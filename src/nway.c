@@ -1681,6 +1681,13 @@ void *run_sweep_center(void *arg)
 {
     struct run_sweep_center_args *p = ((struct run_sweep_center_args *) arg);
 
+    struct mslab *int_list_list_slab = 
+            mslab_init(sizeof(struct int_list_list), 1000);
+
+    struct mslab *int_64_t_slab = 
+            mslab_init(sizeof(int64_t) * p->num_sets, 1000);
+
+
     p->R_head = NULL;
     p->R_tail = NULL;
 
@@ -1698,12 +1705,15 @@ void *run_sweep_center(void *arg)
 
             tt=in();
 
-            sweep_subset(p->S,
+            sweep_subset_mem(p->S,
                          p->num_sets,
                          &(p->centers[i*p->num_sets]),
                          &curr_head,
                          &curr_tail,
-                         &num_R);
+                         &num_R,
+                             int_list_list_slab,
+                             int_64_t_slab);
+                         
 
             unsigned long int __time = out(tt);
 
