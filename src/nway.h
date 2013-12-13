@@ -1,5 +1,6 @@
 #include "threadpool.h"
 #include "mslab.h"
+#include "pq.h"
 #include <pthread.h>
 #include <stdint.h>
 #ifndef __NWAY_H__
@@ -387,7 +388,9 @@ void sweep_subset_mem(struct interval **S,
                       struct int_list_list **R_tail,
                       int *num_R,
                       struct mslab *int_list_list_slab,
-                      struct mslab *int_64_t_slab);
+                      struct mslab *int_64_t_slab,
+                      pri_queue q,
+                      pri_queue c);
 
 int get_nway_sweep_list_mem(int num_sets,
                             int s_i,
