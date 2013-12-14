@@ -1,4 +1,5 @@
 #include "mslab.h"
+#include "timer.h"
 
 struct mslab *mslab_init(size_t element_size, int slab_size)
 {
@@ -26,16 +27,23 @@ void mslab_grow(struct mslab *slab)
 
 void *mslab_get(struct mslab *slab)
 {
+    //struct timeval _t1 = in();
+    struct mslabs *tail = slab->tail;
     // see if we need to grow the slab
-    if (slab->tail->next_free == slab->slab_size)
+    if (tail->next_free == slab->slab_size)
         mslab_grow(slab);
+    //unsigned long t1 = out(_t1);
 
+    //struct timeval _t2 = in();
     void *next_slab = (void *)
-        (slab->tail->slab + (slab->tail->next_free * slab->element_size));
+        (tail->slab + (tail->next_free * slab->element_size));
+    //unsigned long t2 = out(_t2);
 
-    slab->tail->next_free += 1;
+    //struct timeval _t3 = in();
+    tail->next_free += 1;
+    //unsigned long t3 = out(_t3);
+
+    //fprintf(stderr,"%lu\t%lu\t%lu\n", t1,t2,t3);
 
     return next_slab;
-
-
 }

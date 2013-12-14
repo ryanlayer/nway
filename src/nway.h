@@ -399,4 +399,9 @@ int get_nway_sweep_list_mem(int num_sets,
                             struct int_list_list **r_tail,
                             struct mslab *int_list_list_slab,
                             struct mslab *int_64_t_slab);
+
+void l1_split_sets_o_centers (struct interval **S,
+                              int *set_sizes,
+                              struct pair **centers,
+                              int num_sets);
 #endif
