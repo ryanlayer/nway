@@ -38,12 +38,12 @@ int main(int argc, char **argv)
     struct int_list_list *R;
     R = NULL;
 #ifndef IN_TIME_SPLIT
-    //start();
+    start();
 #endif
     psplit_centers(S, set_sizes, num_sets, &R, num_threads);
 #ifndef IN_TIME_SPLIT
-    //stop();
-    //printf("%lu\n", report());
+    stop();
+    printf("%lu\n", report());
 #endif
 
     if (to_print == 1)

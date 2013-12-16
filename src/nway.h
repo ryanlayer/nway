@@ -404,4 +404,12 @@ void l1_split_sets_o_centers (struct interval **S,
                               int *set_sizes,
                               struct pair **centers,
                               int num_sets);
+
+void sweep_split_subset(struct interval **S,
+                        int num_sets,
+                        struct pair *s_dim,
+                        struct int_list_list **R_head,
+                        struct int_list_list **R_tail,
+                        int *num_R);
+
 #endif
