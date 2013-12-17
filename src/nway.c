@@ -955,9 +955,10 @@ void sweep_split_subset(struct interval **S,
 
         if (end_v >= start_v) {
             *num_R += 1;
-            if (nways_head== NULL) 
+            if (nways_head== NULL) {
                 nways_head= new_l;
-             else
+                nways_tail = nways_head;
+            } else
                 nways_tail->next = new_l;
              nways_tail = new_l;
         } else {
@@ -977,9 +978,10 @@ void sweep_split_subset(struct interval **S,
 
         if (_num_R > 0) {
             *num_R += _num_R;
-            if (nways_head == NULL) 
+            if (nways_head == NULL) {
                 nways_head= curr_head;
-            else
+                nways_tail = nways_head;
+            } else
                 nways_tail->next = curr_head;
             nways_tail = curr_tail;
         }
@@ -1456,7 +1458,7 @@ void split_sweep(struct interval **S,
 #if 1
             struct int_list_list *curr_head, *curr_tail;
 
-            int num_R;
+            int num_R = 0;
             sweep_split_subset(S,
                                num_sets,
                                node->s_dim,
@@ -2004,7 +2006,7 @@ void *run_sweep_center(void *arg)
 #ifdef RUN_SWEEP_CENTER_TIME
             hit++;
 #endif
-            int num_R;
+            int num_R = 0;
             struct int_list_list *curr_head, *curr_tail;
 
 #ifdef RUN_SWEEP_CENTER_TIME
