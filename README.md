@@ -8,10 +8,9 @@ Installation
 ============
 Installation requires the tcmalloc library
 (http://goog-perftools.sourceforge.net/doc/tcmalloc.html), which is part of the
-gperftools package.  This package can be installed on most operating systems
-through the associated package management tool:
+gperftools package.  This package can be installed on most Linux-based
+operating systems through the associated package management tool:
 
-- OS X: `brew install gperftools`
 - RedHat Linux: `yum install google-perftools-devel`
 - Ubuntu Linux: `apt-get install libgoogle-perftools-dev google-perftools`
 
