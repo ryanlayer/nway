@@ -38,60 +38,49 @@ All of the executables have the same command line parameters:
 
 The number of threads to use for the parallel algorithms.
 
-::
-
     -b  bed files
 
 The set of sorted bed files to consider.  Wild card characters are uses here to
 include multiple files.
 
-::
     -g  genome file
 
 The genome file defines the chromosome order and size.  It is required when
 considering bed files
 
-::
     -f  file name
 
 A file of interval sets where each line contains one interval set.  Lines
 contain an interval were the start and end positions are space-delimited and
 the intervals are tab-delimited.
 
-::
     -n  number of sets
 
 The number of interval sets in the simulated sets.
 
-::
     -i  number of intervals per set
 
 The number of interval per set in the simulated sets.
 
-::
     -I  number of intersections
 
 The number of N-way intersections in the simulated sets.  This number cannot be
 larger than the the number of intervals
 
-::
     -l  interval length
 
 The length of intervals in the simulated sets.
 
-::
     -r  range
 
 The maximum interval end position in simulated sets.
 
 
-::
     -p  to print set
 
 Defines the output format.  1 prints indices, 2 prints interval coordinates,
 and 3 prints the coordinates of the region common to the intervals.  If -p is not given, then the output is the algorithm runtime.
 
-::
     -s  random seed
 
 The simulation seed.
@@ -114,8 +103,8 @@ Test existing data sets
 ==================
 To intersect bed files, a genome file defining the chromosome order and size
 must be provided (an example genome file is given in genome/hg19.genome).  A
-sample of the DnaseI files from Maurano (DOI: 10.1126/science.1222794) can be
-found at http://www.cs.virginia.edu/~rl6sf/Dnase1_sample.tar.gz.
+sample of the DnaseI files from Maurano et al. (DOI: 10.1126/science.1222794)
+can be found at http://www.cs.virginia.edu/~rl6sf/Dnase1_sample.tar.gz.
 
     wget http://www.cs.virginia.edu/~rl6sf/Dnase1_sample.tar.gz
     tar -zxvf Dnase1_sample.tar.gz
