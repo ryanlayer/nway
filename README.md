@@ -36,7 +36,7 @@ All of the executables have the same command line parameters:
 
     -t  number of threads
 
-The number of threads to use for the parallel algorithms.
+The number of threads to use for the parallel algorithms.  This option is ignored for sequential algorithms.
 
     -b  bed files
 
@@ -50,9 +50,9 @@ considering bed files
 
     -f  file name
 
-A file of interval sets where each line contains one interval set.  Lines
-contain an interval were the start and end positions are space-delimited and
-the intervals are tab-delimited.
+A file of interval sets where each line contains one interval set.  Within each
+line, interval start and end positions are space-delimited and the intervals
+are tab-delimited.
 
     -n  number of sets
 
