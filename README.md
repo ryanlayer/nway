@@ -9,17 +9,18 @@ Installation
 Installation requires the tcmalloc library
 (http://goog-perftools.sourceforge.net/doc/tcmalloc.html), which is part of the
 gperftools package.  This package can be installed on most operating systems
-through their associated package management tool:
+through the associated package management tool:
 
 - OS X: `brew install gperftools`
-- RedHat Linux: yum install google-perftools-devel
-- Ubuntu Linux: apt-get install libgoogle-perftools-dev google-perftools
+- RedHat Linux: `yum install google-perftools-devel`
+- Ubuntu Linux: `apt-get install libgoogle-perftools-dev google-perftools`
 
 Otherwise, gperftools can be install from source at
 https://code.google.com/p/gperftools/downloads/list
 
 Compile N-way algorithms
 ::
+
     cd nway
     make
 
