@@ -949,7 +949,7 @@ void sweep_split_subset(struct interval **S,
 
         for(i=0; i < num_sets; i++) {
             start_v = MAX(start_v, S[i][s_dim[i].start].start);
-            end_v = MIN(start_v, S[i][s_dim[i].start].end);
+            end_v = MIN(end_v, S[i][s_dim[i].start].end);
             new_l->list[i] = s_dim[i].start;
         }
 
