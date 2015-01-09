@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 import sys
 import numpy as np
 import matplotlib
@@ -100,7 +101,7 @@ ax = fig.add_subplot(1,1,1)
 
 #app_list =['split_o','split_sweep','psplit_centers','split_psweep']
 #app_list =['sweep','split_o','split_sweep','psplit_centers','split_psweep']
-app_list =['sweep','split_o','split_sweep','psplit_centers']
+app_list =['split_o','split_sweep','psplit_centers']
 
 markers={'sweep':'s',
          'split_o':'o',
@@ -116,6 +117,8 @@ fills={'sweep':'none',
 
 colors={1:'black',4:'blue',8:'red',16:'green'}
 
+baseline = 'sweep'
+
 lables=[]
 plots=[]
 plots_seen=[]
@@ -123,10 +126,13 @@ for app in app_list:
     i = 0
     lables = []
     for sample in O:
+        brunt = R[baseline][sample][0].time
         lables.append(R[app][sample][0].size)
         for run in R[app][sample]:
             if run.threads in colors:
-                p,=ax.plot([i],[run.time],".-",\
+                p,=ax.plot([i],\
+                        [math.log(brunt/run.time,2)],\
+                        ".-",\
                         linewidth=3,\
                         markersize=4,\
                         marker=markers[app],\
@@ -145,7 +151,7 @@ print lables
 ax.set_xticks([])
 ax.set_xticklabels([])
 ax.set_xlim([-1,i])
-#ax.set_ylim([0,300000])
+ax.set_ylim([-3,5])
 #ax.set_ylim([0,options.ymax])
 #ax.set_ylabel('Run Time(mircroseconds)')
 #ax.set_xlabel('Number of sets')
@@ -155,10 +161,13 @@ ax.set_xlim([-1,i])
     #frameon=False)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-ax.spines['bottom'].set_linewidth(0.5)
+ax.spines['bottom'].set_visible(False)
+#ax.spines['bottom'].set_linewidth(0.5)
 ax.spines['left'].set_linewidth(0.5)
 
 ax.yaxis.tick_left()
+
+matplotlib.pyplot.axhline(y=0,linewidth=0.5, color='black')
 
 ax.yaxis.grid(b=True, which='major', color = '0.75', linestyle='--')
 ax.set_axisbelow(True)

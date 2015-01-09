@@ -1,0 +1,133 @@
+hall15:~/scratch/nway/wgEncodeHaibTfbs
+
+# Get the data
+cd broadPeak
+ftp ftp://hgdownload.cse.ucsc.edu
+cd goldenPath/hg19/encodeDCC/wgEncodeHaibTfbs/
+mget *broadPeak.gz
+ls * | xargs -I {} gunzip {}
+
+cd ..
+
+# Test for containment
+for i in `ls broadPeak/*`; do A=`cat $i | wc -l`; B=`bedtools merge -i $i | wc -l`; echo $A $B; done | awk '$1!=$2'
+
+# Convert to set
+for i in `ls broadPeak/*`
+do
+	p=`dirname $i`
+	f=`basename $i .broadPeak`
+	~/src/nway/scripts/peak_to_set.py \
+		-g ~/src/bedtools/genomes/human.hg19.genome \
+		-b $i \
+		> set/$f.set
+done
+
+# For each antibody, make a combo that randomly selects 1 run from each cell type 
+~/src/nway/scripts/wgEncodeHaibTfbs/get_mixed_cell_type_combos.py -d set -f files.txt  -o combos > mixed_cell_type_combos.txt
+./test_sets.sh -t mixed_cell_type_combos.txt > mixed_cell_type_combos.out
+
+# For each cell type, make a combo that randomly selects 1 from from each antibody
+~/src/nway/scripts/wgEncodeHaibTfbs/get_mixed_antibody_combos.py -d set -f files.txt  -o combos > mixed_antibody_combos.txt
+./test_sets.sh -t mixed_antibody_combos.txt > mixed_antibody_combos.out
+
+# Download data
+wget ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwTfbs/*broadPeak.gz
+ls *gz | xargs -I{} gunzip {}
+ls * | awk '{print "bedtools merge -i "$1" > "$1".merge";}' | sh
+ls bed | grep merge | awk '{print "~/src/nway/scripts/peak_to_set.py -g ~/src/bedtools/genomes/human.hg19.genome -b bed/"$1" > set/"$1".set";}'
+
+
+### DnaseI
+ls bed | sed -e "s/.merge.bed//" | awk '{print "~/src/nway/scripts/peak_to_set.py -g ~/src/bedtools/genomes/human.hg19.genome -b bed/"$1".merge.bed > set.1/"$1".set";}' | sh
+
+
+
+# debug
+ls bed/*bed | awk '{print "grep chr7 "$1" > "$1".chr7";}' | sh
+bedtools multiinter -i bed/*.chr7 | awk '$4==5'  > bedtools.out
+ls bed/*chr7 | awk '{print "~/src/nway/scripts/peak_to_set.py -g ~/src/bedtools/genomes/human.hg19.genome -b "$1" > "$1".set";}' | sh
+mkdir set
+mv bed/*set set/.
+mkdir combo
+cat set/* > combo/chr7.set
+
+
+
+~/src/nway/scripts/peak_to_set.py -g ~/src/bedtools/genomes/human.hg19.genome -b "bed/fAdrenal-DS*" > combos/fAdrenal.set
+
+
+# get the bedtools result
+bedtools multiinter -i bed/* | awk '$4==5' > bedtools.result.bed
+
+wc -l bedtools.result.bed
+#  93080 bedtools.result.bed
+
+~/src/nway/scripts/bed_to_set.py \
+	-g ~/src/bedtools/genomes/human.hg19.genome \
+	-b bedtools.result.bed \
+	| sort -n \
+	> bedtools.result.set
+	
+~/src/nway/bin/split_o -f combos/fAdrenal.set -p 3 | tail -n+2 | sort -n > split_o.result.set
+~/src/nway/bin/sweep -f combos/fAdrenal.set -p 3 | tail -n+2 | sort -n > sweep.result.set
+
+
+wc -l *.set
+   93080 bedtools.result.set
+   39578 split_o.result.set
+   61698 sweep.result.set
+  194356 total
+  
+  
+###### validate that the bed to set conversion works
+~/src/nway/scripts/bed_to_set.py \
+	-g ~/src/bedtools/genomes/human.hg19.genome \
+	-b bed/fAdrenal-DS12528.hotspot.twopass.fdr0.05.merge.bed \
+	> set/fAdrenal-DS12528.hotspot.twopass.fdr0.05.merge.set
+~/src/nway/scripts/set_to_bed.py \
+	-g ~/src/bedtools/genomes/human.hg19.genome \
+	-s set/fAdrenal-DS12528.hotspot.twopass.fdr0.05.merge.set \
+	> conv.bed
+cat conv.bed | sort > conv.sort.bed
+cat bed/fAdrenal-DS12528.hotspot.twopass.fdr0.05.merge.bed | sort > o.sort.bed
+paste conv.sort.bed o.sort.bed | awk '$1!=$4 && $2!=$5 && $3!=$6' | wc -l
+
+### check two sets
+# fThymus
+scp mirror:~/scratch/nway/DnaseI/bed/fThymus*hg19*bed .
+~/src/nway/scripts/bed_to_set.py -g ~/src/bedtools/genomes/human.hg19.genome -b "bed/fThymus-DS*" > combos/fThymus.set
+~/src/nway/bin/split_o -f combos/fThymus.set -p 3 | tail -n+2 | sort -n > split_o.fThymus.result.set
+cat  split_o.fThymus.result.set | tr '\t' ' ' | tr '\n' '\t' > split_o.fThymus.result.set.0
+~/src/nway/scripts/set_to_bed.py -g ~/src/bedtools/genomes/human.hg19.genome -s split_o.fThymus.result.set.0 > split_o.fThymus.result.bed
+tail -n 1 split_o.fThymus.result.bed
+#	chr6	138266092	138266296
+tail -n 1 split_o.fThymus.result.set
+#	1200808052	1200808255
+bedtools multiinter -i bed/fThymus-DS* | awk '$4==9' > bedtools.fThymus.result.bed
+
+# fAdrenal
+~/src/nway/scripts/bed_to_set.py -g ~/src/bedtools/genomes/human.hg19.genome -b "bed/fAdrenal-DS*" > combos/fAdrenal.set
+~/src/nway/bin/split_o -f combos/fAdrenal.set -p 3 | tail -n+2 | sort -n > split_o.fAdrenal.result.set
+cat  split_o.fAdrenal.result.set | tr '\t' ' ' | tr '\n' '\t' > split_o.fAdrenal.result.set.0
+~/src/nway/scripts/set_to_bed.py -g ~/src/bedtools/genomes/human.hg19.genome -s split_o.fAdrenal.result.set.0 > split_o.fAdrenal.result.bed
+tail -n 1 split_o.fAdrenal.result.bed
+#	chr7	110174331	110174584
+tail -n 1 split_o.fAdrenal.result.set
+#	1343831358	1343831610
+bedtools multiinter -i bed/fAdrenal-DS* | awk '$4==5' > bedtools.fAdrenal.result.bed
+
+# fStomach
+~/src/nway/scripts/bed_to_set.py -g ~/src/bedtools/genomes/human.hg19.genome -b "bed/fStomach-DS*" > combos/fStomach.set
+~/src/nway/bin/split_o -f combos/fStomach.set -p 3 | tail -n+2 | sort -n > split_o.fStomach.result.set
+cat  split_o.fStomach.result.set | tr '\t' ' ' | tr '\n' '\t' > split_o.fStomach.result.set.0
+~/src/nway/scripts/set_to_bed.py -g ~/src/bedtools/genomes/human.hg19.genome -s split_o.fStomach.result.set.0 > split_o.fStomach.result.bed
+tail -n 1 split_o.fStomach.result.bed
+#	chr7	110174331	110174584
+tail -n 1 split_o.fStomach.result.set
+#	1343831358	1343831610
+bedtools multiinter -i bed/fStomach-DS* | awk '$4==5' > bedtools.fStomach.result.bed
+
+
+
+

@@ -37,16 +37,6 @@ parser.add_option("-d",
                   dest="data_files",
                   help="Comma seperated data files")
 
-parser.add_option("-o",
-                  "--out_file",
-                  dest="out_file",
-                  help="Output file")
-
-parser.add_option("-t",
-                  "--titles",
-                  dest="titles",
-                  help="Plot Titles")
-
 parser.add_option("--op",
                   default="mean",
                   dest="data_op",
@@ -58,28 +48,14 @@ parser.add_option("--op",
 if not options.data_files:
     parser.error('Data files not given')
 
-if not options.out_file:
-    parser.error('Ouput file not given')
-
-if not options.titles:
-    parser.error('Titles not given')
-
 data_files = options.data_files.split(',')
-titles = options.titles.split(',')
 
-
-if len(data_files) != len(titles):
-    parser.error('Number of data files and titles do not match')
+D = {}
 
 num_plots = len(data_files)
 
-matplotlib.rcParams.update({'font.size': 10})
-fig = matplotlib.pyplot.figure(figsize=(5,1*num_plots),dpi=300)
-fig.subplots_adjust(wspace=.05,left=.01,bottom=0,top=0.7)
-
 for n in range(len(data_files)):
     data_file = data_files[n]
-    title = titles[n]
 
     print data_file,n
 
@@ -103,8 +79,6 @@ for n in range(len(data_files)):
             O.append(data.sample)
          
     f.close()
-
-    ax = fig.add_subplot(num_plots,1,n+1)
 
 
     #app_list =['split_o','split_sweep','psplit_centers','split_psweep']
@@ -136,54 +110,40 @@ for n in range(len(data_files)):
         i = 0
         lables = []
         for sample in O:
-            lables.append(R[app][sample][0].size)
+            N,M,I = [int(x) for x in sample.split(":")]
             for run in R[app][sample]:
                 if run.threads in thread_list:
-                    p,=ax.plot([i],[run.time],'.-',\
-                            linewidth=3,\
-                            marker=markers[app],\
-                            color=colors[run.threads], \
-                            fillstyle=fills[app], \
-                            markersize=4)
-                    if not run.get_name() in plots_seen:
-                        print run.get_name()
-                        plots.append(p)
-                        plots_seen.append(run.get_name())
-            i+=1
 
-    print lables
+                    if not I in D:
+                        D[I] = {}
 
-    #if n == num_plots -1:
-    #    ax.set_xticks(range(len(lables)))
-    #    ax.set_xticklabels(lables,rotation=270)
-    #    ax.set_xlabel('Number of sets')
-    #else:
-    ax.set_xticks([])
-    ax.set_xticklabels([])
-    #for spine in ax.spines.itervalues():
-        #print spine
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_linewidth(0.5)
-    ax.spines['left'].set_linewidth(0.5)
+                    if not app in D[I]:
+                        D[I][app] = {}
 
-    ax.yaxis.tick_left()
+                    if not run.threads in D[I][app]:
+                        D[I][app][run.threads] = {}
 
-    #ax.set_yscale('log')
-    ax.set_xlim([-1,i])
-    #ax.set_ylim([1000,19000000])
-    #ax.set_ylim([1000,1900000])
-    #ax.set_ylim([0,1900000])
-    ax.set_ylim([0,310000])
-    ax.yaxis.grid(b=True, which='major', color = '0.75', linestyle='--')
-    ax.set_axisbelow(True)
-    ax.set_yticklabels([])
+                    D[I][app][run.threads][N] = run.time
+#                    p,=ax.plot([i],[run.time],'.-',\
+#                            linewidth=3,\
+#                            marker=markers[app],\
+#                            color=colors[run.threads], \
+#                            fillstyle=fills[app], \
+#                            markersize=4)
+#                    if not run.get_name() in plots_seen:
+#                        print run.get_name()
+#                        plots.append(p)
+#                        plots_seen.append(run.get_name())
 
-    #ax.set_ylabel('Run Time(mircroseconds)')
-    #ax.set_title(title)
-    #ax.legend(plots, plots_seen,loc=0,numpoints=1,ncol=2,
-        #prop={'size':8},
-        #frameon=False)
 
-matplotlib.pyplot.savefig(options.out_file,bbox_inches='tight')
+app_order =['sweep','split_o','split_sweep','psplit_centers']
+
+for I in sorted(D.keys()):
+    print I
+    for app in app_order:
+        for threads in sorted(D[I][app].keys()):
+            print app,threads,
+            for N in sorted(D[I][app][threads].keys()):
+                print D[I][app][threads][N],
+            print
 

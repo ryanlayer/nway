@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 import sys
 import numpy as np
 import matplotlib
@@ -110,7 +111,8 @@ for n in range(len(data_files)):
     #app_list =['split_o','split_sweep','psplit_centers','split_psweep']
     #app_list =['sweep','split_o','split_sweep','psplit_centers','split_psweep']
     #app_list =['sweep','split_o','split_sweep','psplit_centers','split_psweep']
-    app_list =['sweep','split_o','split_sweep','psplit_centers']
+    #app_list =['sweep','split_o','split_sweep','psplit_centers']
+    app_list =['split_o','split_sweep','psplit_centers']
     thread_list = [1,4,8,16]
 
     markers={'sweep':'s',
@@ -126,6 +128,7 @@ for n in range(len(data_files)):
              'split_psweep':'full'}
 
 
+    baseline = 'sweep'
 
     colors={1:'black',4:'blue',8:'red',16:'green'}
 
@@ -136,10 +139,14 @@ for n in range(len(data_files)):
         i = 0
         lables = []
         for sample in O:
+            brunt = R[baseline][sample][0].time
             lables.append(R[app][sample][0].size)
             for run in R[app][sample]:
                 if run.threads in thread_list:
-                    p,=ax.plot([i],[run.time],'.-',\
+                    p,=ax.plot([i],\
+                            #[brunt/run.time],\
+                            [math.log(brunt/run.time,2)],\
+                            '.-',\
                             linewidth=3,\
                             marker=markers[app],\
                             color=colors[run.threads], \
@@ -164,7 +171,8 @@ for n in range(len(data_files)):
         #print spine
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_linewidth(0.5)
+    ax.spines['bottom'].set_visible(False)
+    #ax.spines['bottom'].set_linewidth(0.5)
     ax.spines['left'].set_linewidth(0.5)
 
     ax.yaxis.tick_left()
@@ -174,10 +182,12 @@ for n in range(len(data_files)):
     #ax.set_ylim([1000,19000000])
     #ax.set_ylim([1000,1900000])
     #ax.set_ylim([0,1900000])
-    ax.set_ylim([0,310000])
+    ax.set_ylim([-6,6])
     ax.yaxis.grid(b=True, which='major', color = '0.75', linestyle='--')
     ax.set_axisbelow(True)
     ax.set_yticklabels([])
+
+    matplotlib.pyplot.axhline(y=0,linewidth=0.5, color='black')
 
     #ax.set_ylabel('Run Time(mircroseconds)')
     #ax.set_title(title)

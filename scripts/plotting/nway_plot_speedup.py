@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+import math
 import numpy as np
 import matplotlib
 import pylab
@@ -89,7 +90,7 @@ for l in f:
 
     if not data.sample in O:
         O.append(data.sample)
-     
+
 f.close()
 
 matplotlib.rcParams.update({'font.size': 10})
@@ -116,17 +117,25 @@ fills={'sweep':'none',
 
 colors={1:'black',4:'blue',8:'red',16:'green'}
 
+baseline='sweep'
+
 lables=[]
 plots=[]
 plots_seen=[]
 for app in app_list:
+    print app
     i = 0
     lables = []
     for sample in O:
         lables.append(R[app][sample][0].size)
+        brun = R[baseline][sample] 
         for run in R[app][sample]:
+            print app,run.threads
             if run.threads in colors:
-                p,=ax.plot([i],[run.time],".-",\
+                p,=ax.plot([i],
+                        [math.log(brun[0].time/run.time,2)],\
+                        #[brun[0].time/run.time],\
+                        ".-",\
                         linewidth=3,\
                         markersize=4,\
                         marker=markers[app],\
@@ -162,7 +171,7 @@ ax.yaxis.tick_left()
 
 ax.yaxis.grid(b=True, which='major', color = '0.75', linestyle='--')
 ax.set_axisbelow(True)
-ax.set_yticklabels([])
+#ax.set_yticklabels([])
 
 matplotlib.pyplot.savefig(options.out_file,bbox_inches='tight')
 
